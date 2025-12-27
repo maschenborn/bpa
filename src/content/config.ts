@@ -16,6 +16,7 @@ const doctorSchema = z.object({
   address: addressSchema.optional(),
   phone: z.string().optional(),
   email: z.string().optional(), // Relaxed from email()
+  website: z.string().optional(),
   notes: z.string().optional(),
   firstVisit: z.coerce.date().optional(),
   isActive: z.boolean().default(true),

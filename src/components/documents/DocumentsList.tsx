@@ -26,6 +26,7 @@ import EventIcon from '@mui/icons-material/Event';
 import type { Document, Doctor } from '../../content/config';
 import DocumentForm from './DocumentForm';
 import DetailDrawer from '../ui/DetailDrawer';
+import EditDrawer from '../ui/EditDrawer';
 
 // Icon mapping for document types
 const TYPE_COLORS: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'> = {
@@ -221,70 +222,70 @@ export default function DocumentsList() {
             >
               <CardActionArea onClick={() => handleCardClick(doc)}>
                 <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                    <DescriptionIcon color="action" />
-                    <Typography variant="h6" component="h2" sx={{ fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {doc.title}
-                    </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                      <DescriptionIcon color="action" />
+                      <Typography variant="h6" component="h2" sx={{ fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doc.title}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={doc.type}
+                        size="small"
+                        color={TYPE_COLORS[doc.type] || 'default'}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, doc);
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Chip
-                      label={doc.type}
-                      size="small"
-                      color={TYPE_COLORS[doc.type] || 'default'}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMenuOpen(e, doc);
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
 
-                <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
-                  {formatDate(doc.date)} | {doc.fileType.toUpperCase()}
-                </Typography>
-
-                {doc.description && (
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    {doc.description}
+                  <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
+                    {formatDate(doc.date)} | {doc.fileType.toUpperCase()}
                   </Typography>
-                )}
 
-                {doc.doctorId && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                    <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {getDoctorName(doc.doctorId)}
+                  {doc.description && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {doc.description}
                     </Typography>
-                  </Box>
-                )}
+                  )}
 
-                {doc.appointmentId && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                    <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      Verknüpft mit Termin
-                    </Typography>
-                  </Box>
-                )}
+                  {doc.doctorId && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                      <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {getDoctorName(doc.doctorId)}
+                      </Typography>
+                    </Box>
+                  )}
 
-                {doc.tags && doc.tags.length > 0 && (
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
-                    {doc.tags.map((tag, i) => (
-                      <Chip key={i} label={tag} size="small" variant="outlined" />
-                    ))}
-                  </Box>
-                )}
+                  {doc.appointmentId && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                      <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Verknüpft mit Termin
+                      </Typography>
+                    </Box>
+                  )}
 
-                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
-                  {doc.filePath}
-                </Typography>
+                  {doc.tags && doc.tags.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
+                      {doc.tags.map((tag, i) => (
+                        <Chip key={i} label={tag} size="small" variant="outlined" />
+                      ))}
+                    </Box>
+                  )}
+
+                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+                    {doc.filePath}
+                  </Typography>
                 </CardContent>
               </CardActionArea>
             </Card>
@@ -313,18 +314,17 @@ export default function DocumentsList() {
       </Menu>
 
       {/* Form Dialog */}
-      <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingDocument ? 'Dokument bearbeiten' : 'Neues Dokument'}
-        </DialogTitle>
-        <DialogContent>
-          <DocumentForm
-            document={editingDocument}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditDrawer
+        open={formOpen}
+        onClose={handleFormClose}
+        title={editingDocument ? 'Dokument bearbeiten' : 'Neues Dokument'}
+      >
+        <DocumentForm
+          document={editingDocument}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </EditDrawer>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>

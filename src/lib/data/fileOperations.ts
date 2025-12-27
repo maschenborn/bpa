@@ -1,9 +1,6 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { db } from '../firebase/server';
 import { v4 as uuidv4 } from 'uuid';
 import type { Doctor, Appointment, Medication, Status, Document } from '../../content/config';
-
-const CONTENT_DIR = path.join(process.cwd(), 'src', 'content');
 
 // === UTILITY FUNCTIONS ===
 
@@ -22,61 +19,39 @@ function generateId(): string {
   return uuidv4();
 }
 
+
 function now(): string {
   return new Date().toISOString();
 }
 
-async function ensureDir(dir: string): Promise<void> {
-  await fs.mkdir(dir, { recursive: true });
-}
-
-async function readJsonFile<T>(filePath: string): Promise<T> {
-  const content = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(content) as T;
-}
-
-async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-}
-
-async function listJsonFiles(dir: string): Promise<string[]> {
-  try {
-    const files = await fs.readdir(dir);
-    return files.filter(f => f.endsWith('.json'));
-  } catch {
-    return [];
+function cleanUndefined(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj.toISOString();
+  if (Array.isArray(obj)) return obj.map(v => cleanUndefined(v));
+  const res: any = {};
+  for (const k in obj) {
+    if (obj[k] !== undefined) {
+      res[k] = cleanUndefined(obj[k]);
+    }
   }
-}
-
-async function listMdFiles(dir: string): Promise<string[]> {
-  try {
-    const files = await fs.readdir(dir);
-    return files.filter(f => f.endsWith('.md'));
-  } catch {
-    return [];
-  }
+  return res;
 }
 
 // === DOCTORS ===
 
 export async function getAllDoctors(): Promise<Doctor[]> {
-  const dir = path.join(CONTENT_DIR, 'doctors');
-  const files = await listJsonFiles(dir);
-  const doctors = await Promise.all(
-    files.map(f => readJsonFile<Doctor>(path.join(dir, f)))
-  );
-  return doctors.sort((a, b) => a.name.localeCompare(b.name));
+  const snapshot = await db.ref('doctors').once('value');
+  const val = snapshot.val();
+  if (!val) return [];
+  return Object.values(val) as Doctor[];
 }
 
 export async function getDoctorById(id: string): Promise<Doctor | null> {
-  const doctors = await getAllDoctors();
-  return doctors.find(d => d.id === id) || null;
+  const snapshot = await db.ref(`doctors/${id}`).once('value');
+  return snapshot.val() || null;
 }
 
 export async function createDoctor(data: Omit<Doctor, 'id' | 'createdAt' | 'updatedAt'>): Promise<Doctor> {
-  const dir = path.join(CONTENT_DIR, 'doctors');
-  await ensureDir(dir);
-
   const doctor: Doctor = {
     ...data,
     id: generateId(),
@@ -84,68 +59,54 @@ export async function createDoctor(data: Omit<Doctor, 'id' | 'createdAt' | 'upda
     updatedAt: new Date(now()),
   };
 
-  const filename = `${slugify(doctor.name)}-${doctor.id.slice(0, 8)}.json`;
-  await writeJsonFile(path.join(dir, filename), doctor);
+  await db.ref(`doctors/${doctor.id}`).set(cleanUndefined(doctor));
   return doctor;
 }
 
 export async function updateDoctor(id: string, data: Partial<Doctor>): Promise<Doctor | null> {
-  const dir = path.join(CONTENT_DIR, 'doctors');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`doctors/${id}`);
+  const snapshot = await ref.once('value');
+  const current = snapshot.val();
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const doctor = await readJsonFile<Doctor>(filePath);
-    if (doctor.id === id) {
-      const updated: Doctor = {
-        ...doctor,
-        ...data,
-        id: doctor.id,
-        createdAt: doctor.createdAt,
-        updatedAt: new Date(now()),
-      };
-      await writeJsonFile(filePath, updated);
-      return updated;
-    }
-  }
-  return null;
+  if (!current) return null;
+
+  const updated: Doctor = {
+    ...current,
+    ...cleanUndefined(data),
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date(now()),
+  };
+
+  await ref.set(cleanUndefined(updated));
+  return updated;
 }
 
 export async function deleteDoctor(id: string): Promise<boolean> {
-  const dir = path.join(CONTENT_DIR, 'doctors');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`doctors/${id}`);
+  const snapshot = await ref.once('value');
+  if (!snapshot.exists()) return false;
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const doctor = await readJsonFile<Doctor>(filePath);
-    if (doctor.id === id) {
-      await fs.unlink(filePath);
-      return true;
-    }
-  }
-  return false;
+  await ref.remove();
+  return true;
 }
 
 // === APPOINTMENTS ===
 
 export async function getAllAppointments(): Promise<Appointment[]> {
-  const dir = path.join(CONTENT_DIR, 'appointments');
-  const files = await listJsonFiles(dir);
-  const appointments = await Promise.all(
-    files.map(f => readJsonFile<Appointment>(path.join(dir, f)))
-  );
+  const snapshot = await db.ref('appointments').once('value');
+  const val = snapshot.val();
+  if (!val) return [];
+  const appointments = Object.values(val) as Appointment[];
   return appointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getAppointmentById(id: string): Promise<Appointment | null> {
-  const appointments = await getAllAppointments();
-  return appointments.find(a => a.id === id) || null;
+  const snapshot = await db.ref(`appointments/${id}`).once('value');
+  return snapshot.val() || null;
 }
 
 export async function createAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment> {
-  const dir = path.join(CONTENT_DIR, 'appointments');
-  await ensureDir(dir);
-
   const appointment: Appointment = {
     ...data,
     id: generateId(),
@@ -153,69 +114,54 @@ export async function createAppointment(data: Omit<Appointment, 'id' | 'createdA
     updatedAt: new Date(now()),
   };
 
-  const dateStr = new Date(data.date).toISOString().split('T')[0];
-  const filename = `${dateStr}-${appointment.id.slice(0, 8)}.json`;
-  await writeJsonFile(path.join(dir, filename), appointment);
+  await db.ref(`appointments/${appointment.id}`).set(cleanUndefined(appointment));
   return appointment;
 }
 
 export async function updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment | null> {
-  const dir = path.join(CONTENT_DIR, 'appointments');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`appointments/${id}`);
+  const snapshot = await ref.once('value');
+  const current = snapshot.val();
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const appointment = await readJsonFile<Appointment>(filePath);
-    if (appointment.id === id) {
-      const updated: Appointment = {
-        ...appointment,
-        ...data,
-        id: appointment.id,
-        createdAt: appointment.createdAt,
-        updatedAt: new Date(now()),
-      };
-      await writeJsonFile(filePath, updated);
-      return updated;
-    }
-  }
-  return null;
+  if (!current) return null;
+
+  const updated: Appointment = {
+    ...current,
+    ...cleanUndefined(data),
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date(now()),
+  };
+
+  await ref.set(cleanUndefined(updated));
+  return updated;
 }
 
 export async function deleteAppointment(id: string): Promise<boolean> {
-  const dir = path.join(CONTENT_DIR, 'appointments');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`appointments/${id}`);
+  const snapshot = await ref.once('value');
+  if (!snapshot.exists()) return false;
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const appointment = await readJsonFile<Appointment>(filePath);
-    if (appointment.id === id) {
-      await fs.unlink(filePath);
-      return true;
-    }
-  }
-  return false;
+  await ref.remove();
+  return true;
 }
 
 // === MEDICATIONS ===
 
 export async function getAllMedications(): Promise<Medication[]> {
-  const dir = path.join(CONTENT_DIR, 'medications');
-  const files = await listJsonFiles(dir);
-  const medications = await Promise.all(
-    files.map(f => readJsonFile<Medication>(path.join(dir, f)))
-  );
+  const snapshot = await db.ref('medications').once('value');
+  const val = snapshot.val();
+  if (!val) return [];
+  const medications = Object.values(val) as Medication[];
   return medications.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 }
 
 export async function getMedicationById(id: string): Promise<Medication | null> {
-  const medications = await getAllMedications();
-  return medications.find(m => m.id === id) || null;
+  const snapshot = await db.ref(`medications/${id}`).once('value');
+  return snapshot.val() || null;
 }
 
 export async function createMedication(data: Omit<Medication, 'id' | 'createdAt' | 'updatedAt'>): Promise<Medication> {
-  const dir = path.join(CONTENT_DIR, 'medications');
-  await ensureDir(dir);
-
   const medication: Medication = {
     ...data,
     id: generateId(),
@@ -223,46 +169,36 @@ export async function createMedication(data: Omit<Medication, 'id' | 'createdAt'
     updatedAt: new Date(now()),
   };
 
-  const filename = `${slugify(medication.name)}-${medication.id.slice(0, 8)}.json`;
-  await writeJsonFile(path.join(dir, filename), medication);
+  await db.ref(`medications/${medication.id}`).set(cleanUndefined(medication));
   return medication;
 }
 
 export async function updateMedication(id: string, data: Partial<Medication>): Promise<Medication | null> {
-  const dir = path.join(CONTENT_DIR, 'medications');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`medications/${id}`);
+  const snapshot = await ref.once('value');
+  const current = snapshot.val();
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const medication = await readJsonFile<Medication>(filePath);
-    if (medication.id === id) {
-      const updated: Medication = {
-        ...medication,
-        ...data,
-        id: medication.id,
-        createdAt: medication.createdAt,
-        updatedAt: new Date(now()),
-      };
-      await writeJsonFile(filePath, updated);
-      return updated;
-    }
-  }
-  return null;
+  if (!current) return null;
+
+  const updated: Medication = {
+    ...current,
+    ...cleanUndefined(data),
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date(now()),
+  };
+
+  await ref.set(cleanUndefined(updated));
+  return updated;
 }
 
 export async function deleteMedication(id: string): Promise<boolean> {
-  const dir = path.join(CONTENT_DIR, 'medications');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`medications/${id}`);
+  const snapshot = await ref.once('value');
+  if (!snapshot.exists()) return false;
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const medication = await readJsonFile<Medication>(filePath);
-    if (medication.id === id) {
-      await fs.unlink(filePath);
-      return true;
-    }
-  }
-  return false;
+  await ref.remove();
+  return true;
 }
 
 // === STATUS ===
@@ -271,128 +207,25 @@ interface StatusWithContent extends Status {
   content: string;
 }
 
-function parseMarkdownStatus(content: string, filename: string): StatusWithContent {
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!frontmatterMatch) {
-    throw new Error(`Invalid markdown format in ${filename}`);
-  }
-
-  const [, frontmatter, body] = frontmatterMatch;
-  const data: Record<string, unknown> = {};
-
-  // Simple YAML parsing
-  let currentKey = '';
-  let inArray = false;
-  let arrayValues: string[] = [];
-
-  for (const line of frontmatter.split('\n')) {
-    if (line.startsWith('  - ')) {
-      if (inArray) {
-        arrayValues.push(line.replace('  - ', '').replace(/"/g, '').trim());
-      }
-    } else if (line.includes(':')) {
-      if (inArray && currentKey) {
-        data[currentKey] = arrayValues;
-        arrayValues = [];
-        inArray = false;
-      }
-      const [key, ...valueParts] = line.split(':');
-      const value = valueParts.join(':').trim();
-      currentKey = key.trim();
-      if (value === '') {
-        inArray = true;
-        arrayValues = [];
-      } else if (value === '[]') {
-        // Handle empty inline array
-        data[currentKey] = [];
-      } else if (value.startsWith('[') && value.endsWith(']')) {
-        // Handle inline array like ["a", "b", "c"]
-        try {
-          data[currentKey] = JSON.parse(value);
-        } catch {
-          data[currentKey] = value.replace(/"/g, '');
-        }
-      } else {
-        data[currentKey] = value.replace(/"/g, '');
-      }
-    }
-  }
-  if (inArray && currentKey) {
-    data[currentKey] = arrayValues;
-  }
-
-  return {
-    id: data.id as string,
-    date: new Date(data.date as string),
-    time: data.time as string | undefined,
-    painLevel: parseInt(data.painLevel as string, 10),
-    symptoms: (data.symptoms as string[]) || [],
-    affectedAreas: (data.affectedAreas as string[]) || [],
-    generalCondition: data.generalCondition as Status['generalCondition'],
-    sleep: data.sleep as Status['sleep'],
-    appetite: data.appetite as Status['appetite'],
-    mood: data.mood as Status['mood'],
-    medicationsTaken: (data.medicationsTaken as string[]) || [],
-    documentIds: (data.documentIds as string[]) || [],
-    createdAt: new Date(data.createdAt as string),
-    updatedAt: new Date(data.updatedAt as string),
-    content: body.trim(),
-  };
-}
-
-function statusToMarkdown(status: StatusWithContent): string {
-  const formatArray = (arr: string[]): string => {
-    if (arr.length === 0) return '[]';
-    return '\n' + arr.map(item => `  - "${item}"`).join('\n');
-  };
-
-  return `---
-id: "${status.id}"
-date: ${new Date(status.date).toISOString().split('T')[0]}
-time: "${status.time || ''}"
-painLevel: ${status.painLevel}
-symptoms: ${formatArray(status.symptoms)}
-affectedAreas: ${formatArray(status.affectedAreas)}
-generalCondition: "${status.generalCondition}"
-sleep: "${status.sleep || ''}"
-appetite: "${status.appetite || ''}"
-mood: "${status.mood || ''}"
-medicationsTaken: ${formatArray(status.medicationsTaken)}
-documentIds: ${formatArray(status.documentIds)}
-createdAt: ${new Date(status.createdAt).toISOString()}
-updatedAt: ${new Date(status.updatedAt).toISOString()}
----
-
-${status.content}
-`;
-}
+// Note: Status was previously stored as Markdown with Frontmatter.
+// Now it's just JSON. 'content' assumes simple text/markdown string inside logic.
+// The new Firebase model stores 'content' as a regular string field alongside other props.
 
 export async function getAllStatuses(): Promise<StatusWithContent[]> {
-  const dir = path.join(CONTENT_DIR, 'status');
-  const files = await listMdFiles(dir);
-  const statuses: StatusWithContent[] = [];
+  const snapshot = await db.ref('status').once('value');
+  const val = snapshot.val();
+  if (!val) return [];
 
-  for (const file of files) {
-    try {
-      const content = await fs.readFile(path.join(dir, file), 'utf-8');
-      statuses.push(parseMarkdownStatus(content, file));
-    } catch (e) {
-      console.error(`Error parsing ${file}:`, e);
-    }
-  }
-
+  const statuses = Object.values(val) as StatusWithContent[];
   return statuses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getStatusById(id: string): Promise<StatusWithContent | null> {
-  const statuses = await getAllStatuses();
-  return statuses.find(s => s.id === id) || null;
+  const snapshot = await db.ref(`status/${id}`).once('value');
+  return snapshot.val() || null;
 }
 
 export async function createStatus(data: Omit<StatusWithContent, 'id' | 'createdAt' | 'updatedAt'>): Promise<StatusWithContent> {
-  const dir = path.join(CONTENT_DIR, 'status');
-  await ensureDir(dir);
-
   const status: StatusWithContent = {
     ...data,
     id: generateId(),
@@ -400,81 +233,55 @@ export async function createStatus(data: Omit<StatusWithContent, 'id' | 'created
     updatedAt: new Date(now()),
   };
 
-  const dateStr = new Date(data.date).toISOString().split('T')[0];
-  const timeStr = data.time ? `-${data.time.replace(':', '')}` : '';
-  const filename = `${dateStr}${timeStr}-${status.id.slice(0, 8)}.md`;
-
-  await fs.writeFile(path.join(dir, filename), statusToMarkdown(status), 'utf-8');
+  await db.ref(`status/${status.id}`).set(cleanUndefined(status));
   return status;
 }
 
 export async function updateStatus(id: string, data: Partial<StatusWithContent>): Promise<StatusWithContent | null> {
-  const dir = path.join(CONTENT_DIR, 'status');
-  const files = await listMdFiles(dir);
+  const ref = db.ref(`status/${id}`);
+  const snapshot = await ref.once('value');
+  const current = snapshot.val();
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const status = parseMarkdownStatus(content, file);
-      if (status.id === id) {
-        const updated: StatusWithContent = {
-          ...status,
-          ...data,
-          id: status.id,
-          createdAt: status.createdAt,
-          updatedAt: new Date(now()),
-        };
-        await fs.writeFile(filePath, statusToMarkdown(updated), 'utf-8');
-        return updated;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
+  if (!current) return null;
+
+  const updated: StatusWithContent = {
+    ...current,
+    ...cleanUndefined(data),
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date(now()),
+  };
+
+  await ref.set(cleanUndefined(updated));
+  return updated;
 }
 
 export async function deleteStatus(id: string): Promise<boolean> {
-  const dir = path.join(CONTENT_DIR, 'status');
-  const files = await listMdFiles(dir);
+  const ref = db.ref(`status/${id}`);
+  const snapshot = await ref.once('value');
+  if (!snapshot.exists()) return false;
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const status = parseMarkdownStatus(content, file);
-      if (status.id === id) {
-        await fs.unlink(filePath);
-        return true;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return false;
+  await ref.remove();
+  return true;
 }
 
 // === DOCUMENTS ===
 
 export async function getAllDocuments(): Promise<Document[]> {
-  const dir = path.join(CONTENT_DIR, 'documents');
-  const files = await listJsonFiles(dir);
-  const documents = await Promise.all(
-    files.map(f => readJsonFile<Document>(path.join(dir, f)))
-  );
+  const snapshot = await db.ref('documents').once('value');
+  const val = snapshot.val();
+  if (!val) return [];
+
+  const documents = Object.values(val) as Document[];
   return documents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getDocumentById(id: string): Promise<Document | null> {
-  const documents = await getAllDocuments();
-  return documents.find(d => d.id === id) || null;
+  const snapshot = await db.ref(`documents/${id}`).once('value');
+  return snapshot.val() || null;
 }
 
 export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document> {
-  const dir = path.join(CONTENT_DIR, 'documents');
-  await ensureDir(dir);
-
   const document: Document = {
     ...data,
     id: generateId(),
@@ -482,46 +289,36 @@ export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | '
     updatedAt: new Date(now()),
   };
 
-  const filename = `${slugify(document.title)}-${document.id.slice(0, 8)}.json`;
-  await writeJsonFile(path.join(dir, filename), document);
+  await db.ref(`documents/${document.id}`).set(cleanUndefined(document));
   return document;
 }
 
 export async function updateDocument(id: string, data: Partial<Document>): Promise<Document | null> {
-  const dir = path.join(CONTENT_DIR, 'documents');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`documents/${id}`);
+  const snapshot = await ref.once('value');
+  const current = snapshot.val();
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const document = await readJsonFile<Document>(filePath);
-    if (document.id === id) {
-      const updated: Document = {
-        ...document,
-        ...data,
-        id: document.id,
-        createdAt: document.createdAt,
-        updatedAt: new Date(now()),
-      };
-      await writeJsonFile(filePath, updated);
-      return updated;
-    }
-  }
-  return null;
+  if (!current) return null;
+
+  const updated: Document = {
+    ...current,
+    ...cleanUndefined(data),
+    id: current.id,
+    createdAt: current.createdAt,
+    updatedAt: new Date(now()),
+  };
+
+  await ref.set(cleanUndefined(updated));
+  return updated;
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  const dir = path.join(CONTENT_DIR, 'documents');
-  const files = await listJsonFiles(dir);
+  const ref = db.ref(`documents/${id}`);
+  const snapshot = await ref.once('value');
+  if (!snapshot.exists()) return false;
 
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const document = await readJsonFile<Document>(filePath);
-    if (document.id === id) {
-      await fs.unlink(filePath);
-      return true;
-    }
-  }
-  return false;
+  await ref.remove();
+  return true;
 }
 
 // === TIMELINE ===
@@ -613,7 +410,7 @@ export async function getTimeline(options?: {
       date: new Date(status.date),
       time: status.time,
       title: `Befinden: Schmerz ${status.painLevel}/10`,
-      summary: status.symptoms.join(', ') || status.content.slice(0, 100),
+      summary: (status.symptoms || []).join(', ') || (status.content || '').slice(0, 100),
       severity: severityMap[status.painLevel],
       relatedEntities: {
         documentIds: status.documentIds,
@@ -644,10 +441,10 @@ export async function getTimeline(options?: {
   let filtered = entries;
 
   if (options?.startDate) {
-    filtered = filtered.filter(e => e.date >= options.startDate!);
+    filtered = filtered.filter(e => new Date(e.date) >= options.startDate!);
   }
   if (options?.endDate) {
-    filtered = filtered.filter(e => e.date <= options.endDate!);
+    filtered = filtered.filter(e => new Date(e.date) <= options.endDate!);
   }
   if (options?.types && options.types.length > 0) {
     filtered = filtered.filter(e => options.types!.includes(e.type));
@@ -672,16 +469,13 @@ export async function getTimeline(options?: {
   }
 
   // Sort by date + time descending (newest first)
-  // Combine date and time for proper ordering within the same day
   const getSortableTimestamp = (entry: TimelineEntry): number => {
-    const baseTime = entry.date.getTime();
+    const baseTime = new Date(entry.date).getTime();
     if (entry.time) {
       // Parse time string (expected format: "HH:MM" or "HH:MM:SS")
       const [hours, minutes, seconds = 0] = entry.time.split(':').map(Number);
-      // Add milliseconds for time-of-day
       return baseTime + (hours * 3600 + minutes * 60 + Number(seconds)) * 1000;
     }
-    // No time specified - use end of day to sort at bottom of that day
     return baseTime;
   };
 

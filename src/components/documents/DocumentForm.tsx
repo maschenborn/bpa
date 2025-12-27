@@ -29,13 +29,26 @@ const FILE_TYPES = ['pdf', 'jpg', 'png', 'doc', 'docx'];
 export default function DocumentForm({ document, onSuccess, onCancel }: DocumentFormProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  // Helper to format date for input
+  const formatDateForInput = (dateStr?: string | Date) => {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+      return d.toISOString().split('T')[0];
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
+  };
+
   const [formData, setFormData] = useState({
     type: document?.type || 'Befund',
     title: document?.title || '',
     description: document?.description || '',
     filePath: document?.filePath || '',
     fileType: document?.fileType || 'pdf',
-    date: document?.date ? new Date(document.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    date: formatDateForInput(document?.date),
     doctorId: document?.doctorId || '',
     appointmentId: document?.appointmentId || '',
     tags: document?.tags?.join(', ') || '',

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -20,6 +20,8 @@ import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import NotesIcon from '@mui/icons-material/Notes';
+import LabelIcon from '@mui/icons-material/Label';
+import LanguageIcon from '@mui/icons-material/Language';
 import type { Appointment, Medication, Status, Document, Doctor } from '../../content/config';
 
 // Type labels for appointments
@@ -49,13 +51,6 @@ const moodLabels: Record<string, string> = {
   terrible: 'Sehr schlecht',
 };
 
-const moodColors: Record<string, 'success' | 'info' | 'warning' | 'error'> = {
-  good: 'success',
-  okay: 'info',
-  bad: 'warning',
-  terrible: 'error',
-};
-
 // Document type colors
 const documentTypeColors: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'> = {
   'Befund': 'primary',
@@ -76,6 +71,11 @@ export interface DetailDrawerProps {
   data: Appointment | Medication | Status | Document | Doctor | null;
   onEdit?: () => void;
   doctors?: Doctor[];
+}
+
+interface HistoryItem {
+  type: DetailType;
+  data: any;
 }
 
 // Helper to format dates
@@ -140,40 +140,8 @@ function Section({
   );
 }
 
-// Compact info row for key-value display
-function InfoRow({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) {
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 1.5,
-        py: 1,
-        '&:not(:last-child)': {
-          borderBottom: '1px solid',
-          borderColor: 'grey.200',
-        },
-      }}
-    >
-      {icon && (
-        <Box sx={{ color: 'text.secondary', mt: 0.2, flexShrink: 0 }}>
-          {icon}
-        </Box>
-      )}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-          {label}
-        </Typography>
-        <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-          {value}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
 // Appointment Detail View
-function AppointmentDetail({ data, doctors }: { data: Appointment; doctors?: Doctor[] }) {
+function AppointmentDetail({ data, doctors, onNavigate }: { data: Appointment; doctors?: Doctor[]; onNavigate: (type: DetailType, id: string) => void }) {
   const getDoctorName = (doctorId: string) => {
     const doctor = doctors?.find((d) => d.id === doctorId);
     return doctor?.name || 'Unbekannt';
@@ -219,11 +187,20 @@ function AppointmentDetail({ data, doctors }: { data: Appointment; doctors?: Doc
         </Box>
       </Box>
 
-      {/* Doctor Card */}
+      {/* Doctor Card - Clickable */}
       <Section title="Behandelnder Arzt" icon={<PersonIcon fontSize="small" />} highlight>
-        <Typography variant="body1" fontWeight="bold" color="primary.main">
-          {getDoctorName(data.doctorId)}
-        </Typography>
+        <Box
+          onClick={() => data.doctorId && onNavigate('doctor', data.doctorId)}
+          sx={{
+            cursor: data.doctorId ? 'pointer' : 'default',
+            '&:hover': data.doctorId ? { opacity: 0.8 } : {}
+          }}
+        >
+          <Typography variant="body1" fontWeight="bold" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {getDoctorName(data.doctorId)}
+            {data.doctorId && <ArrowBackIcon sx={{ transform: 'rotate(180deg)', fontSize: 16 }} />}
+          </Typography>
+        </Box>
       </Section>
 
       {/* Reason */}
@@ -309,7 +286,7 @@ function AppointmentDetail({ data, doctors }: { data: Appointment; doctors?: Doc
 }
 
 // Medication Detail View
-function MedicationDetail({ data, doctors }: { data: Medication; doctors?: Doctor[] }) {
+function MedicationDetail({ data, doctors, onNavigate }: { data: Medication; doctors?: Doctor[]; onNavigate: (type: DetailType, id: string) => void }) {
   const getDoctorName = (doctorId?: string) => {
     if (!doctorId) return null;
     const doctor = doctors?.find((d) => d.id === doctorId);
@@ -387,12 +364,18 @@ function MedicationDetail({ data, doctors }: { data: Medication; doctors?: Docto
         </Box>
       </Section>
 
-      {/* Prescribing Doctor */}
+      {/* Prescribing Doctor - Clickable */}
       {data.prescribingDoctorId && (
         <Section title="Verschrieben von" icon={<PersonIcon fontSize="small" />}>
-          <Typography variant="body1" fontWeight="medium" color="primary.main">
-            {getDoctorName(data.prescribingDoctorId)}
-          </Typography>
+          <Box
+            onClick={() => onNavigate('doctor', data.prescribingDoctorId!)}
+            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+          >
+            <Typography variant="body1" fontWeight="medium" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {getDoctorName(data.prescribingDoctorId)}
+              <ArrowBackIcon sx={{ transform: 'rotate(180deg)', fontSize: 16 }} />
+            </Typography>
+          </Box>
         </Section>
       )}
 
@@ -467,13 +450,6 @@ function MedicationDetail({ data, doctors }: { data: Medication; doctors?: Docto
 
 // Status Detail View
 function StatusDetail({ data }: { data: Status }) {
-  const getPainColor = (level: number): 'success' | 'info' | 'warning' | 'error' => {
-    if (level <= 2) return 'success';
-    if (level <= 4) return 'info';
-    if (level <= 6) return 'warning';
-    return 'error';
-  };
-
   const getPainGradient = (level: number) => {
     if (level <= 2) return 'linear-gradient(135deg, #2e7d32 0%, #4caf50 100%)';
     if (level <= 4) return 'linear-gradient(135deg, #0288d1 0%, #03a9f4 100%)';
@@ -677,159 +653,26 @@ function StatusDetail({ data }: { data: Status }) {
   );
 }
 
-// Document Detail View
-function DocumentDetail({ data, doctors }: { data: Document; doctors?: Doctor[] }) {
-  const getDoctorName = (doctorId?: string) => {
-    if (!doctorId) return null;
-    const doctor = doctors?.find((d) => d.id === doctorId);
-    return doctor?.name || 'Unbekannt';
-  };
-
-  const getTypeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      'Befund': '#1976d2',
-      'Labor': '#0288d1',
-      'Rezept': '#2e7d32',
-      'Rechnung': '#ed6c02',
-      'Arztbrief': '#9c27b0',
-      'Überweisung': '#1976d2',
-      'Bildgebung': '#00838f',
-    };
-    return colors[type] || '#757575';
-  };
-
-  return (
-    <>
-      {/* Hero Header */}
-      <Box
-        sx={{
-          background: `linear-gradient(135deg, ${getTypeColor(data.type)} 0%, ${getTypeColor(data.type)}cc 100%)`,
-          borderRadius: 3,
-          p: 2.5,
-          mb: 3,
-          color: 'white',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <DescriptionIcon />
-          <Typography variant="h5" fontWeight="bold" sx={{ wordBreak: 'break-word' }}>
-            {data.title}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <Chip
-            label={data.type}
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: 'white',
-              fontWeight: 600,
-            }}
-          />
-          <Chip
-            label={data.fileType.toUpperCase()}
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.15)',
-              color: 'white',
-            }}
-            size="small"
-          />
-        </Box>
-      </Box>
-
-      {/* Date */}
-      <Section title="Dokumentdatum" icon={<CalendarTodayIcon fontSize="small" />}>
-        <Typography variant="body1" fontWeight="medium">
-          {formatShortDate(data.date)}
-        </Typography>
-      </Section>
-
-      {/* Description */}
-      {data.description && (
-        <Section title="Beschreibung">
-          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-            {data.description}
-          </Typography>
-        </Section>
-      )}
-
-      {/* Doctor */}
-      {data.doctorId && (
-        <Section title="Ausstellender Arzt" icon={<PersonIcon fontSize="small" />} highlight>
-          <Typography variant="body1" fontWeight="bold" color="primary.main">
-            {getDoctorName(data.doctorId)}
-          </Typography>
-        </Section>
-      )}
-
-      {/* Tags */}
-      {data.tags && data.tags.length > 0 && (
-        <Section title="Tags">
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-            {data.tags.map((tag, idx) => (
-              <Chip
-                key={idx}
-                label={tag}
-                size="small"
-                sx={{
-                  bgcolor: 'primary.50',
-                  color: 'primary.dark',
-                  border: '1px solid',
-                  borderColor: 'primary.200',
-                  fontWeight: 500,
-                }}
-              />
-            ))}
-          </Box>
-        </Section>
-      )}
-
-      {/* File Info */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          bgcolor: 'grey.100',
-          border: '1px solid',
-          borderColor: 'grey.300',
-        }}
-      >
-        <Typography
-          variant="caption"
-          sx={{
-            textTransform: 'uppercase',
-            letterSpacing: 1,
-            fontWeight: 600,
-            color: 'text.secondary',
-            display: 'block',
-            mb: 1,
-          }}
-        >
-          Dateiinformationen
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{
-            wordBreak: 'break-all',
-            fontFamily: 'monospace',
-            fontSize: '0.75rem',
-            color: 'text.secondary',
-          }}
-        >
-          {data.filePath}
-        </Typography>
-        {data.fileSize && (
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Größe: {(data.fileSize / 1024).toFixed(1)} KB
-          </Typography>
-        )}
-      </Paper>
-    </>
-  );
-}
-
 // Doctor Detail View
-function DoctorDetail({ data }: { data: Doctor }) {
+function DoctorDetail({ data, onNavigate }: { data: Doctor; onNavigate: (type: DetailType, id: string) => void }) {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Fetch all appointments and filter by doctor ID
+    setLoading(true);
+    fetch('/api/appointments')
+      .then(res => res.json())
+      .then((allAppointments: Appointment[]) => {
+        const doctorAppointments = allAppointments.filter(apt => apt.doctorId === data.id);
+        // Sort by date desc
+        doctorAppointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setAppointments(doctorAppointments);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [data.id]);
+
   const formatAddress = (address: any) => {
     if (typeof address === 'string') return address;
     if (!address) return null;
@@ -972,6 +815,41 @@ function DoctorDetail({ data }: { data: Doctor }) {
             </Box>
           )}
 
+          {data.website && (
+            <Box
+              component="a"
+              href={data.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                py: 1,
+                textDecoration: 'none',
+                color: 'inherit',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.50',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <LanguageIcon fontSize="small" color="primary" />
+              </Box>
+              <Typography variant="body1" fontWeight="medium" sx={{ wordBreak: 'break-all' }}>
+                Webseite
+              </Typography>
+            </Box>
+          )}
+
           {data.address && formatAddress(data.address) && (
             <Box
               sx={{
@@ -1012,6 +890,51 @@ function DoctorDetail({ data }: { data: Doctor }) {
         </Section>
       )}
 
+      {/* Appointments List */}
+      <Section title="Termine" icon={<EventIcon fontSize="small" />}>
+        {loading ? (
+          <LinearProgress />
+        ) : appointments.length > 0 ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {appointments.map(apt => (
+              <Paper
+                key={apt.id}
+                onClick={() => onNavigate('appointment', apt.id)}
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  bgcolor: 'grey.50',
+                  border: '1px solid',
+                  borderColor: 'grey.200',
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'grey.100', borderColor: 'primary.200' }
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    {formatDate(apt.date)}
+                  </Typography>
+                  <Chip
+                    label={appointmentTypeLabels[apt.type] || apt.type}
+                    size="small"
+                    color={appointmentTypeColors[apt.type] || 'default'}
+                    sx={{ height: 20, fontSize: '0.7rem' }}
+                  />
+                </Box>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {apt.reason}
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+            Keine Termine gefunden.
+          </Typography>
+        )}
+      </Section>
+
       {/* Notes */}
       {data.notes && (
         <Section title="Notizen" icon={<NotesIcon fontSize="small" />}>
@@ -1024,36 +947,236 @@ function DoctorDetail({ data }: { data: Doctor }) {
   );
 }
 
+// Document Detail View
+function DocumentDetail({ data, doctors, onNavigate }: { data: Document; doctors?: Doctor[]; onNavigate: (type: DetailType, id: string) => void }) {
+  const getDoctorName = (doctorId: string) => {
+    const doctor = doctors?.find((d) => d.id === doctorId);
+    return doctor?.name || 'Unbekannt';
+  };
+
+  const getTypeColor = (type: string) => {
+    return documentTypeColors[type] || '#757575';
+  };
+
+  return (
+    <>
+      {/* Hero Header */}
+      <Box
+        sx={{
+          background: `linear-gradient(135deg, ${getTypeColor(data.type)} 0%, ${getTypeColor(data.type)}cc 100%)`,
+          borderRadius: 3,
+          p: 2.5,
+          mb: 3,
+          color: 'white',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <DescriptionIcon />
+          <Typography variant="h5" fontWeight="bold" sx={{ wordBreak: 'break-word' }}>
+            {data.title}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+          <Chip
+            label={data.type}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              fontWeight: 600,
+            }}
+          />
+          <Chip
+            label={data.fileType.toUpperCase()}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.15)',
+              color: 'white',
+            }}
+            size="small"
+          />
+        </Box>
+      </Box>
+
+      {/* Date */}
+      <Section title="Dokumentdatum" icon={<CalendarTodayIcon fontSize="small" />}>
+        <Typography variant="body1" fontWeight="medium">
+          {formatShortDate(data.date)}
+        </Typography>
+      </Section>
+
+      {/* Description */}
+      {data.description && (
+        <Section title="Beschreibung">
+          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+            {data.description}
+          </Typography>
+        </Section>
+      )}
+
+      {/* Doctor - Clickable */}
+      {data.doctorId && (
+        <Section title="Ausstellender Arzt" icon={<PersonIcon fontSize="small" />} highlight>
+          <Box
+            onClick={() => onNavigate('doctor', data.doctorId!)}
+            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+          >
+            <Typography variant="body1" fontWeight="bold" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {getDoctorName(data.doctorId)}
+              <ArrowBackIcon sx={{ transform: 'rotate(180deg)', fontSize: 16 }} />
+            </Typography>
+          </Box>
+        </Section>
+      )}
+
+      {/* Tags */}
+      {data.tags && data.tags.length > 0 && (
+        <Section title="Tags" icon={<LabelIcon fontSize="small" />}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {data.tags.map((tag, index) => (
+              <Chip key={index} label={tag} size="small" />
+            ))}
+          </Box>
+        </Section>
+      )}
+
+      {/* File Info */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          p: 2,
+          borderRadius: 2,
+          bgcolor: 'grey.50',
+          border: '1px solid',
+          borderColor: 'grey.200',
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            fontWeight: 600,
+            color: 'text.secondary',
+            display: 'block',
+            mb: 1.5,
+          }}
+        >
+          Dateiinformationen
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            wordBreak: 'break-all',
+            fontFamily: 'monospace',
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+          }}
+        >
+          {data.filePath}
+        </Typography>
+        {data.fileSize && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Größe: {(data.fileSize / 1024).toFixed(1)} KB
+          </Typography>
+        )}
+      </Paper>
+    </>
+  );
+}
+
 // Main DetailDrawer Component
 export default function DetailDrawer({ open, onClose, type, data, onEdit, doctors }: DetailDrawerProps) {
   const [localDoctors, setLocalDoctors] = useState<Doctor[]>(doctors || []);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  // Fetch doctors if not provided and needed
+  // Initialize history when opening with new data
   useEffect(() => {
-    if (!doctors && open && (type === 'appointment' || type === 'medication' || type === 'document')) {
+    if (open && type && data) {
+      setHistory(prev => {
+        // Reset navigation history only if we are switching to a completely different root item
+        if (prev.length === 0 || prev[0].data.id !== data.id) {
+          return [{ type, data }];
+        }
+        return prev;
+      });
+    } else if (!open) {
+      // Short delay to clear history after drawer closes
+      const timer = setTimeout(() => setHistory([]), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, type, data]);
+
+  // Fetch doctors if needed
+  useEffect(() => {
+    if (!doctors && open) {
       fetch('/api/doctors')
         .then(res => res.json())
         .then(setLocalDoctors)
-        .catch(() => {});
+        .catch(() => { });
     }
-  }, [open, type, doctors]);
+  }, [open, doctors]);
 
   const activeDoctors = doctors || localDoctors;
 
-  if (!data || !type) return null;
+  // Current view is the last item in history
+  const currentItem = history.length > 0 ? history[history.length - 1] : { type, data };
+
+  if (!currentItem.data || !currentItem.type) return null;
+
+  const handleNavigate = async (targetType: DetailType, targetId: string) => {
+    try {
+      let newData: any = null;
+      if (targetType === 'doctor') {
+        newData = activeDoctors.find(d => d.id === targetId);
+        // If not in list, try fetching individually
+        if (!newData) {
+          const res = await fetch(`/api/doctors/${targetId}`);
+          if (res.ok) newData = await res.json();
+        }
+      } else if (targetType === 'appointment') {
+        const res = await fetch(`/api/appointments/${targetId}`);
+        if (res.ok) newData = await res.json();
+      } else if (targetType === 'medication') {
+        const res = await fetch(`/api/medications/${targetId}`);
+        if (res.ok) newData = await res.json();
+      } else if (targetType === 'document') {
+        const res = await fetch(`/api/documents/${targetId}`);
+        if (res.ok) newData = await res.json();
+      } else if (targetType === 'status') {
+        const res = await fetch(`/api/status/${targetId}`);
+        if (res.ok) newData = await res.json();
+      }
+
+      if (newData) {
+        setHistory(prev => [...prev, { type: targetType, data: newData }]);
+      }
+    } catch (e) {
+      console.error("Navigation failed", e);
+    }
+  };
+
+  const handleBack = () => {
+    if (history.length > 1) {
+      setHistory(prev => prev.slice(0, -1));
+    } else {
+      onClose();
+    }
+  };
 
   const renderContent = () => {
-    switch (type) {
+    const { type: currentType, data: currentData } = currentItem;
+
+    switch (currentType) {
       case 'appointment':
-        return <AppointmentDetail data={data as Appointment} doctors={activeDoctors} />;
+        return <AppointmentDetail data={currentData as Appointment} doctors={activeDoctors} onNavigate={handleNavigate} />;
       case 'medication':
-        return <MedicationDetail data={data as Medication} doctors={activeDoctors} />;
+        return <MedicationDetail data={currentData as Medication} doctors={activeDoctors} onNavigate={handleNavigate} />;
       case 'status':
-        return <StatusDetail data={data as Status} />;
+        return <StatusDetail data={currentData as Status} />;
       case 'document':
-        return <DocumentDetail data={data as Document} doctors={activeDoctors} />;
+        return <DocumentDetail data={currentData as Document} doctors={activeDoctors} onNavigate={handleNavigate} />;
       case 'doctor':
-        return <DoctorDetail data={data as Doctor} />;
+        return <DoctorDetail data={currentData as Doctor} onNavigate={handleNavigate} />;
       default:
         return null;
     }
@@ -1064,6 +1187,7 @@ export default function DetailDrawer({ open, onClose, type, data, onEdit, doctor
       anchor="right"
       open={open}
       onClose={onClose}
+      sx={{ zIndex: (theme) => theme.zIndex.modal + 10 }}
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 420, md: 480 },
@@ -1092,18 +1216,40 @@ export default function DetailDrawer({ open, onClose, type, data, onEdit, doctor
             borderColor: 'grey.200',
           }}
         >
-          <Button
-            onClick={onClose}
-            startIcon={<ArrowBackIcon />}
-            sx={{
-              color: 'text.primary',
-              fontWeight: 600,
-              '&:hover': { bgcolor: 'grey.100' },
-            }}
-          >
-            Zurück
-          </Button>
-          {onEdit && (
+          {history.length > 1 ? (
+            <IconButton onClick={handleBack} edge="start" sx={{ mr: 1 }}>
+              <ArrowBackIcon />
+            </IconButton>
+          ) : (
+            <>
+              {/* Desktop Button */}
+              <Button
+                onClick={onClose}
+                startIcon={<ArrowBackIcon />}
+                sx={{
+                  display: { xs: 'none', sm: 'flex' },
+                  color: 'text.primary',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: 'grey.100' },
+                }}
+              >
+                Schließen
+              </Button>
+              {/* Mobile Icon Button */}
+              <IconButton
+                onClick={onClose}
+                edge="start"
+                sx={{
+                  display: { xs: 'flex', sm: 'none' },
+                  color: 'text.primary'
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            </>
+          )}
+
+          {onEdit && history.length === 1 && (
             <Button
               startIcon={<EditIcon />}
               onClick={onEdit}

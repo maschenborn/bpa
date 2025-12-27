@@ -26,6 +26,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import type { Doctor, Address } from '../../content/config';
 import DoctorForm from './DoctorForm';
 import DetailDrawer from '../ui/DetailDrawer';
+import EditDrawer from '../ui/EditDrawer';
 
 // Helper to format address (can be string or object)
 function formatAddress(address: Address | undefined): string {
@@ -278,19 +279,18 @@ export default function DoctorsList() {
         </MenuItem>
       </Menu>
 
-      {/* Form Dialog */}
-      <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingDoctor ? 'Arzt bearbeiten' : 'Neuer Arzt'}
-        </DialogTitle>
-        <DialogContent>
-          <DoctorForm
-            doctor={editingDoctor}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Form Drawer */}
+      <EditDrawer
+        open={formOpen}
+        onClose={handleFormClose}
+        title={editingDoctor ? 'Arzt bearbeiten' : 'Neuer Arzt'}
+      >
+        <DoctorForm
+          doctor={editingDoctor}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </EditDrawer>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>

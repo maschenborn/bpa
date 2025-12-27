@@ -21,9 +21,11 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import type { Status } from '../../content/config';
 import StatusForm from './StatusForm';
 import DetailDrawer from '../ui/DetailDrawer';
+import EditDrawer from '../ui/EditDrawer';
 
 const moodLabels: Record<string, string> = {
   good: 'Gut',
@@ -94,8 +96,8 @@ export default function StatusList() {
     });
   }, []);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('de-DE', {
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('de-DE', {
       weekday: 'long',
       day: '2-digit',
       month: '2-digit',
@@ -226,69 +228,77 @@ export default function StatusList() {
             >
               <CardActionArea onClick={() => handleCardClick(status)}>
                 <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Typography variant="h6">
-                    {formatDate(status.date)}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Chip
-                      label={moodLabels[status.mood] || status.mood}
-                      color={moodColors[status.mood] || 'default'}
-                      size="small"
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMenuOpen(e, status);
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Schmerzlevel
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {status.painLevel}/10
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={status.painLevel * 10}
-                    color={getPainColor(status.painLevel)}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Box>
-
-                {status.generalCondition && (
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    <strong>Allgemeinzustand:</strong> {status.generalCondition}
-                  </Typography>
-                )}
-
-                {status.symptoms && status.symptoms.length > 0 && (
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Symptome:
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {status.symptoms.map((symptom, idx) => (
-                        <Chip key={idx} label={symptom} size="small" variant="outlined" />
-                      ))}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                      <Typography variant="h6">
+                        {formatDate(status.date)}
+                      </Typography>
+                      {status.time && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, color: 'text.secondary' }}>
+                          <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
+                          <Typography variant="body2">{status.time}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={(status.mood && moodLabels[status.mood]) || status.mood || 'Unbekannt'}
+                        color={(status.mood && moodColors[status.mood]) || 'default'}
+                        size="small"
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, status);
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </Box>
                   </Box>
-                )}
 
-                {status.notes && (
-                  <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
-                    {status.notes}
-                  </Typography>
-                )}
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Schmerzlevel
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {status.painLevel}/10
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={status.painLevel * 10}
+                      color={getPainColor(status.painLevel)}
+                      sx={{ height: 8, borderRadius: 4 }}
+                    />
+                  </Box>
+
+                  {status.generalCondition && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Allgemeinzustand:</strong> {status.generalCondition}
+                    </Typography>
+                  )}
+
+                  {status.symptoms && status.symptoms.length > 0 && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Symptome:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {status.symptoms.map((symptom, idx) => (
+                          <Chip key={idx} label={symptom} size="small" variant="outlined" />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {status.notes && (
+                    <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+                      {status.notes}
+                    </Typography>
+                  )}
                 </CardContent>
               </CardActionArea>
             </Card>
@@ -316,18 +326,17 @@ export default function StatusList() {
         </MenuItem>
       </Menu>
 
-      <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingStatus ? 'Status bearbeiten' : 'Neuer Status'}
-        </DialogTitle>
-        <DialogContent>
-          <StatusForm
-            status={editingStatus}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditDrawer
+        open={formOpen}
+        onClose={handleFormClose}
+        title={editingStatus ? 'Status bearbeiten' : 'Neuer Status'}
+      >
+        <StatusForm
+          status={editingStatus}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </EditDrawer>
 
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle>Status löschen?</DialogTitle>

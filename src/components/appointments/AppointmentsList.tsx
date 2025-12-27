@@ -25,6 +25,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import type { Appointment, Doctor } from '../../content/config';
 import AppointmentForm from './AppointmentForm';
 import DetailDrawer from '../ui/DetailDrawer';
+import EditDrawer from '../ui/EditDrawer';
 
 const typeLabels: Record<string, string> = {
   consultation: 'Beratung',
@@ -235,62 +236,62 @@ export default function AppointmentsList() {
             >
               <CardActionArea onClick={() => handleCardClick(appointment)}>
                 <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                    <EventIcon color="action" />
-                    <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {formatDate(appointment.date)}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                      <EventIcon color="action" />
+                      <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {formatDate(appointment.date)}
+                      </Typography>
+                      {appointment.time && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+                          <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
+                          <Typography variant="body2">{appointment.time}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={typeLabels[appointment.type] || appointment.type}
+                        color={typeColors[appointment.type] || 'default'}
+                        size="small"
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, appointment);
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                    {getDoctorName(appointment.doctorId)}
+                  </Typography>
+
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Grund:</strong> {appointment.reason}
+                  </Typography>
+
+                  {appointment.findings && (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      <strong>Befund:</strong> {appointment.findings}
                     </Typography>
-                    {appointment.time && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-                        <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                        <Typography variant="body2">{appointment.time}</Typography>
-                      </Box>
-                    )}
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Chip
-                      label={typeLabels[appointment.type] || appointment.type}
-                      color={typeColors[appointment.type] || 'default'}
-                      size="small"
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMenuOpen(e, appointment);
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
+                  )}
 
-                <Typography variant="subtitle1" color="primary" gutterBottom>
-                  {getDoctorName(appointment.doctorId)}
-                </Typography>
+                  {appointment.diagnosis && (
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      <strong>Diagnose:</strong> {appointment.diagnosis}
+                    </Typography>
+                  )}
 
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  <strong>Grund:</strong> {appointment.reason}
-                </Typography>
-
-                {appointment.findings && (
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    <strong>Befund:</strong> {appointment.findings}
-                  </Typography>
-                )}
-
-                {appointment.diagnosis && (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>Diagnose:</strong> {appointment.diagnosis}
-                  </Typography>
-                )}
-
-                {appointment.recommendations && (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>Empfehlung:</strong> {appointment.recommendations}
-                  </Typography>
-                )}
+                  {appointment.recommendations && (
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      <strong>Empfehlung:</strong> {appointment.recommendations}
+                    </Typography>
+                  )}
                 </CardContent>
               </CardActionArea>
             </Card>
@@ -318,19 +319,18 @@ export default function AppointmentsList() {
         </MenuItem>
       </Menu>
 
-      <Dialog open={formOpen} onClose={handleFormClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingAppointment ? 'Termin bearbeiten' : 'Neuer Termin'}
-        </DialogTitle>
-        <DialogContent>
-          <AppointmentForm
-            appointment={editingAppointment}
-            doctors={doctors}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditDrawer
+        open={formOpen}
+        onClose={handleFormClose}
+        title={editingAppointment ? 'Termin bearbeiten' : 'Neuer Termin'}
+      >
+        <AppointmentForm
+          appointment={editingAppointment}
+          doctors={doctors}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </EditDrawer>
 
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle>Termin löschen?</DialogTitle>

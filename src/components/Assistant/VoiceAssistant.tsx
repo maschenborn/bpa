@@ -20,30 +20,30 @@ export default function VoiceAssistant() {
                 return;
             }
             const recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.lang = 'de-DE';
-                recognition.interimResults = false;
-                recognition.maxAlternatives = 1;
+            recognition.continuous = false;
+            recognition.lang = 'de-DE';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
 
-                recognition.onstart = () => {
-                    setIsListening(true);
-                };
+            recognition.onstart = () => {
+                setIsListening(true);
+            };
 
-                recognition.onend = () => {
-                    setIsListening(false);
-                };
+            recognition.onend = () => {
+                setIsListening(false);
+            };
 
-                recognition.onresult = async (event: any) => {
-                    const transcript = event.results[0][0].transcript;
-                    console.log('Recognized:', transcript);
-                    handleVoiceInput(transcript);
-                };
+            recognition.onresult = async (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                console.log('Recognized:', transcript);
+                handleVoiceInput(transcript);
+            };
 
-                recognition.onerror = (event: any) => {
-                    console.error('Speech recognition error', event.error);
-                    setFeedback({ message: 'Spracherkennung fehlgeschlagen: ' + event.error, type: 'error' });
-                    setIsListening(false);
-                };
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error', event.error);
+                setFeedback({ message: 'Spracherkennung fehlgeschlagen: ' + event.error, type: 'error' });
+                setIsListening(false);
+            };
 
             recognitionRef.current = recognition;
         }
@@ -57,7 +57,12 @@ export default function VoiceAssistant() {
             const response = await fetch('/api/assistant', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text }),
+                body: JSON.stringify({
+                    message: text,
+                    context: {
+                        pathname: window.location.pathname
+                    }
+                }),
             });
 
             const result = await response.json();

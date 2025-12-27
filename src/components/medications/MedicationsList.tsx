@@ -24,6 +24,7 @@ import MedicationIcon from '@mui/icons-material/Medication';
 import type { Medication, Doctor } from '../../content/config';
 import MedicationForm from './MedicationForm';
 import DetailDrawer from '../ui/DetailDrawer';
+import EditDrawer from '../ui/EditDrawer';
 
 export default function MedicationsList() {
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -220,57 +221,57 @@ export default function MedicationsList() {
             >
               <CardActionArea onClick={() => handleCardClick(medication)}>
                 <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                    <MedicationIcon color="primary" />
-                    <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {medication.name}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+                      <MedicationIcon color="primary" />
+                      <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {medication.name}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={isActive(medication) ? 'Aktiv' : 'Beendet'}
+                        color={isActive(medication) ? 'success' : 'default'}
+                        size="small"
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, medication);
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="body1" gutterBottom>
+                    {medication.dosage} - {medication.frequency}
+                  </Typography>
+
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(medication.startDate)}
+                    {medication.endDate && ` - ${formatDate(medication.endDate)}`}
+                  </Typography>
+
+                  {medication.prescribingDoctorId && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Verschrieben von: {getDoctorName(medication.prescribingDoctorId)}
                     </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Chip
-                      label={isActive(medication) ? 'Aktiv' : 'Beendet'}
-                      color={isActive(medication) ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMenuOpen(e, medication);
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
+                  )}
 
-                <Typography variant="body1" gutterBottom>
-                  {medication.dosage} - {medication.frequency}
-                </Typography>
+                  {medication.purpose && (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      <strong>Zweck:</strong> {medication.purpose}
+                    </Typography>
+                  )}
 
-                <Typography variant="body2" color="text.secondary">
-                  {formatDate(medication.startDate)}
-                  {medication.endDate && ` - ${formatDate(medication.endDate)}`}
-                </Typography>
-
-                {medication.prescribingDoctorId && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    Verschrieben von: {getDoctorName(medication.prescribingDoctorId)}
-                  </Typography>
-                )}
-
-                {medication.purpose && (
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    <strong>Zweck:</strong> {medication.purpose}
-                  </Typography>
-                )}
-
-                {medication.sideEffects && (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>Nebenwirkungen:</strong> {medication.sideEffects}
-                  </Typography>
-                )}
+                  {medication.sideEffects && (
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      <strong>Nebenwirkungen:</strong> {medication.sideEffects}
+                    </Typography>
+                  )}
                 </CardContent>
               </CardActionArea>
             </Card>
@@ -298,19 +299,18 @@ export default function MedicationsList() {
         </MenuItem>
       </Menu>
 
-      <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingMedication ? 'Medikament bearbeiten' : 'Neues Medikament'}
-        </DialogTitle>
-        <DialogContent>
-          <MedicationForm
-            medication={editingMedication}
-            doctors={doctors}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditDrawer
+        open={formOpen}
+        onClose={handleFormClose}
+        title={editingMedication ? 'Medikament bearbeiten' : 'Neues Medikament'}
+      >
+        <MedicationForm
+          medication={editingMedication}
+          doctors={doctors}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormClose}
+        />
+      </EditDrawer>
 
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
         <DialogTitle>Medikament löschen?</DialogTitle>

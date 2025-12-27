@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
 export const prerender = false;
 import {
@@ -7,13 +7,22 @@ import {
     createAppointment,
     createMedication,
     createDoctor,
-    getAllDoctors
+    updateStatus,
+    updateAppointment,
+    updateMedication,
+    updateDoctor,
+    getAllDoctors,
+    getDoctorById,
+    getAppointmentById,
+    getMedicationById,
+    getStatusById
 } from '../../lib/data/fileOperations';
 
 export const POST: APIRoute = async ({ request }) => {
     try {
         const data = await request.json();
         const userMessage = data.message;
+        const context = data.context || {};
 
         if (!userMessage) {
             return new Response(JSON.stringify({ error: 'Message is required' }), { status: 400 });
@@ -24,82 +33,173 @@ export const POST: APIRoute = async ({ request }) => {
             return new Response(JSON.stringify({ error: 'API key not configured' }), { status: 500 });
         }
 
-        // Load lightweight context
+        // --- 1. Load Data for Context ---
         const doctors = await getAllDoctors();
-        const doctorContext = doctors.map(d => `- "${d.name}" (${d.specialty}): ID="${d.id}"`).join('\n');
+        const doctorList = doctors.map(d => `- "${d.name}" (${d.specialty}): ID="${d.id}"`).join('\n');
+
+        let interactionContext = "";
+
+        // Analyze current URL context
+        if (context.pathname) {
+            const parts = context.pathname.split('/').filter(Boolean);
+            // Expected format: /doctors/[id], /appointments/[id], etc.
+            if (parts.length === 2) {
+                const [entityType, id] = parts;
+                try {
+                    if (entityType === 'doctors') {
+                        const doc = await getDoctorById(id);
+                        if (doc) interactionContext += `User betrachtet gerade den Arzt: "${doc.name}" (ID: ${doc.id}, Fachgebiet: ${doc.specialty}).\n`;
+                    } else if (entityType === 'appointments') {
+                        const app = await getAppointmentById(id);
+                        if (app) interactionContext += `User betrachtet gerade den Termin am ${new Date(app.date).toLocaleString()} (ID: ${app.id}, Grund: ${app.reason}).\n`;
+                    } else if (entityType === 'medications') {
+                        const med = await getMedicationById(id);
+                        if (med) interactionContext += `User betrachtet gerade das Medikament: "${med.name}" (ID: ${med.id}, Dosis: ${med.dosage}).\n`;
+                    } else if (entityType === 'status') {
+                        const stat = await getStatusById(id);
+                        if (stat) interactionContext += `User betrachtet den Status-Eintrag vom ${new Date(stat.date).toLocaleDateString()} (ID: ${stat.id}).\n`;
+                    }
+                } catch (e) {
+                    console.log("Could not resolve context entity", e);
+                }
+            }
+        }
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-3-flash-preview",
             systemInstruction: `Du bist ein medizinischer Assistent für Bine. Deine Aufgabe ist es, Bines gesprochene Eingaben in strukturierte Daten umzuwandeln und in der Datenbank zu speichern.
 
-WICHTIG - Ärzte-Kontext:
-${doctorContext || '(Keine Ärzte in der Datenbank)'}
+KONTEXT-INFORMATIONEN:
+${interactionContext ? "ACHTUNG: " + interactionContext + "Wenn der User 'diesen', 'den aktuellen' oder 'hier' sagt, beziehe dich auf die oben genannte ID.\n" : "Der User befindet sich auf keiner spezifischen Detailseite.\n"}
 
-REGELN für doctorId bei Terminen:
-1. Wenn der genannte Arzt in der Liste oben steht, verwende IMMER die exakte UUID (z.B. "abc123-...")
-2. Wenn der Arzt NICHT in der Liste steht, verwende den Namen als Platzhalter
-3. Bei Fachgebiet-Angaben (z.B. "zum Zahnarzt") ohne Namen: suche passenden Arzt in der Liste
+VERFÜGBARE ÄRZTE:
+${doctorList || '(Keine Ärzte in der Datenbank)'}
 
-Heutiges Datum: ${new Date().toISOString().split('T')[0]}
-Aktuelle Uhrzeit: ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+REGELN:
+1. Verwende bei Updates IMMER die ID des Eintrags. Wenn du im Kontext eine ID hast und der User "bearbeite diesen Arzt" sagt, nimm diese ID.
+2. Wenn du einen neuen Termin bei einem bekannten Arzt anlegst, nutze dessen UUID.
+3. Sei proaktiv: Wenn Informationen fehlen (z.B. Uhrzeit), rate sinnvoll (z.B. morgens = 09:00), aber bevorzuge explizite Angaben.
+4. Formatierung: Datumsangaben immer als ISO String (YYYY-MM-DDTHH:MM:SS) oder YYYY-MM-DD.
+5. Heutiges Datum: ${new Date().toISOString().split('T')[0]}
+6. Aktuelle Uhrzeit: ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
 `,
             tools: [
                 {
                     functionDeclarations: [
                         {
                             name: "createStatus",
-                            description: "Erstellt einen neuen Tagesstatus-Eintrag. Nutze dies für Symptome, Schmerzen, Befinden.",
+                            description: "Erstellt einen neuen Tagesstatus-Eintrag.",
                             parameters: {
-                                type: "OBJECT",
+                                type: SchemaType.OBJECT,
                                 properties: {
-                                    painLevel: { type: "NUMBER", description: "Schmerzlevel von 0 bis 10" },
-                                    symptoms: { type: "ARRAY", items: { type: "STRING" }, description: "Liste der Symptome" },
-                                    mood: { type: "STRING", description: "Stimmung/Laune" },
-                                    notes: { type: "STRING", description: "Zusätzliche Freitext-Notizen" }
+                                    painLevel: { type: SchemaType.NUMBER, description: "Schmerzlevel 0-10" },
+                                    symptoms: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Symptome" },
+                                    mood: { type: SchemaType.STRING },
+                                    notes: { type: SchemaType.STRING }
                                 },
                                 required: ["painLevel"]
                             }
                         },
                         {
-                            name: "createAppointment",
-                            description: "Erstellt einen neuen Arzttermin.",
+                            name: "updateStatus",
+                            description: "Aktualisiert einen existierenden Status.",
                             parameters: {
-                                type: "OBJECT",
+                                type: SchemaType.OBJECT,
                                 properties: {
-                                    date: { type: "STRING", description: "Datum und Uhrzeit im ISO Format (YYYY-MM-DDTHH:MM)" },
-                                    doctorId: { type: "STRING", description: "ID des Arztes (falls bekannt) oder neuer Name" },
-                                    reason: { type: "STRING", description: "Grund für den Termin" },
-                                    type: { type: "STRING", description: "Art des Termins (z.B. 'Untersuchung', 'Therapie')" }
+                                    id: { type: SchemaType.STRING, description: "ID des Status" },
+                                    painLevel: { type: SchemaType.NUMBER },
+                                    symptoms: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                                    mood: { type: SchemaType.STRING },
+                                    notes: { type: SchemaType.STRING }
+                                },
+                                required: ["id"]
+                            }
+                        },
+                        {
+                            name: "createAppointment",
+                            description: "Erstellt Termin.",
+                            parameters: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    date: { type: SchemaType.STRING },
+                                    doctorId: { type: SchemaType.STRING },
+                                    reason: { type: SchemaType.STRING },
+                                    type: { type: SchemaType.STRING }
                                 },
                                 required: ["date", "reason"]
                             }
                         },
                         {
-                            name: "createMedication",
-                            description: "Erstellt einen neuen Medikamenten-Eintrag.",
+                            name: "updateAppointment",
+                            description: "Aktualisiert Termin.",
                             parameters: {
-                                type: "OBJECT",
+                                type: SchemaType.OBJECT,
                                 properties: {
-                                    name: { type: "STRING", description: "Name des Medikaments" },
-                                    dosage: { type: "STRING", description: "Dosierung (z.B. '500mg', '1 Tablette')" },
-                                    frequency: { type: "STRING", description: "Einnahmehäufigkeit" },
-                                    startDate: { type: "STRING", description: "Startdatum (ISO)" }
+                                    id: { type: SchemaType.STRING },
+                                    date: { type: SchemaType.STRING },
+                                    doctorId: { type: SchemaType.STRING },
+                                    reason: { type: SchemaType.STRING },
+                                    type: { type: SchemaType.STRING }
+                                },
+                                required: ["id"]
+                            }
+                        },
+                        {
+                            name: "createMedication",
+                            description: "Erstellt Medikament.",
+                            parameters: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    name: { type: SchemaType.STRING },
+                                    dosage: { type: SchemaType.STRING },
+                                    frequency: { type: SchemaType.STRING },
+                                    startDate: { type: SchemaType.STRING }
                                 },
                                 required: ["name", "dosage"]
                             }
                         },
                         {
-                            name: "createDoctor",
-                            description: "Legt einen neuen Arzt an.",
+                            name: "updateMedication",
+                            description: "Aktualisiert Medikament.",
                             parameters: {
-                                type: "OBJECT",
+                                type: SchemaType.OBJECT,
                                 properties: {
-                                    name: { type: "STRING", description: "Name des Arztes" },
-                                    specialty: { type: "STRING", description: "Fachgebiet" },
-                                    city: { type: "STRING", description: "Stadt/Ort" }
+                                    id: { type: SchemaType.STRING },
+                                    name: { type: SchemaType.STRING },
+                                    dosage: { type: SchemaType.STRING },
+                                    frequency: { type: SchemaType.STRING },
+                                    endDate: { type: SchemaType.STRING, description: "Absetzdatum falls das Medikament abgesetzt wird" },
+                                    isActive: { type: SchemaType.BOOLEAN }
+                                },
+                                required: ["id"]
+                            }
+                        },
+                        {
+                            name: "createDoctor",
+                            description: "Erstellt Arzt.",
+                            parameters: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    name: { type: SchemaType.STRING },
+                                    specialty: { type: SchemaType.STRING },
+                                    city: { type: SchemaType.STRING }
                                 },
                                 required: ["name", "specialty"]
+                            }
+                        },
+                        {
+                            name: "updateDoctor",
+                            description: "Aktualisiert Arzt.",
+                            parameters: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    id: { type: SchemaType.STRING },
+                                    name: { type: SchemaType.STRING },
+                                    specialty: { type: SchemaType.STRING },
+                                    city: { type: SchemaType.STRING }
+                                },
+                                required: ["id"]
                             }
                         }
                     ]
@@ -114,71 +214,102 @@ Aktuelle Uhrzeit: ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', mi
 
         if (calls && calls.length > 0) {
             const call = calls[0];
+            const args = call.args as any;
             let actionResult;
+            let message = "Aktion ausgeführt.";
 
-            console.log("Function Call:", call.name, call.args);
+            console.log("Function Call:", call.name, args);
 
             if (call.name === "createStatus") {
                 actionResult = await createStatus({
-                    painLevel: call.args.painLevel as number,
-                    symptoms: (call.args.symptoms as string[]) || [],
-                    mood: (call.args.mood as string) || undefined,
-                    content: (call.args.notes as string) || "Spracheingabe",
+                    painLevel: args.painLevel as number,
+                    symptoms: (args.symptoms as string[]) || [],
+                    mood: (args.mood as string) || undefined,
+                    content: (args.notes as string) || "Spracheingabe",
                     date: new Date(),
                     affectedAreas: [],
                     medicationsTaken: [],
                     documentIds: []
                 });
+                message = "Status erstellt.";
+            } else if (call.name === "updateStatus") {
+                actionResult = await updateStatus(args.id as string, {
+                    painLevel: args.painLevel as number | undefined,
+                    symptoms: args.symptoms as string[] | undefined,
+                    mood: args.mood as string | undefined,
+                    content: args.notes as string | undefined,
+                });
+                message = "Status aktualisiert.";
             } else if (call.name === "createAppointment") {
-                // Simple logic: if doctorId looks like a UUID, use it, otherwise we might need to create one (skip for now)
-                // For MVP we assume Gemini picks a valid ID or we leave it empty/handle string match later.
-                // If doctorId is NOT in our list, we might want to create a doctor first? 
-                // For now, let's just save whatever Gemini sends.
                 actionResult = await createAppointment({
-                    date: new Date(call.args.date as string),
-                    doctorId: (call.args.doctorId as string) || "unknown",
-                    reason: call.args.reason as string,
-                    type: (call.args.type as string) || "Untersuchung",
+                    date: new Date(args.date as string),
+                    doctorId: (args.doctorId as string) || "unknown",
+                    reason: args.reason as string,
+                    type: (args.type as string) || "Untersuchung",
                     recommendations: [],
                     prescriptions: [],
                     documentIds: []
                 });
+                message = "Termin angelegt.";
+            } else if (call.name === "updateAppointment") {
+                actionResult = await updateAppointment(args.id as string, {
+                    date: args.date ? new Date(args.date as string) : undefined,
+                    doctorId: args.doctorId as string | undefined,
+                    reason: args.reason as string | undefined,
+                    type: args.type as string | undefined,
+                });
+                message = "Termin aktualisiert.";
             } else if (call.name === "createMedication") {
                 actionResult = await createMedication({
-                    name: call.args.name as string,
-                    dosage: call.args.dosage as string,
-                    frequency: (call.args.frequency as string) || "täglich",
-                    startDate: new Date((call.args.startDate as string) || Date.now()),
-                    route: "oral",
-                    sideEffects: [],
-                    isActive: true
+                    name: args.name as string,
+                    dosage: args.dosage as string,
+                    frequency: (args.frequency as string) || "täglich",
+                    startDate: new Date((args.startDate as string) || Date.now()),
+                    route: "oral", sideEffects: [], isActive: true
                 });
+                message = "Medikament angelegt.";
+            } else if (call.name === "updateMedication") {
+                actionResult = await updateMedication(args.id as string, {
+                    name: args.name as string | undefined,
+                    dosage: args.dosage as string | undefined,
+                    frequency: args.frequency as string | undefined,
+                    endDate: args.endDate ? new Date(args.endDate as string) : undefined,
+                    isActive: args.isActive as boolean | undefined
+                });
+                message = "Medikament aktualisiert.";
             } else if (call.name === "createDoctor") {
                 actionResult = await createDoctor({
-                    name: call.args.name as string,
-                    specialty: call.args.specialty as string,
-                    address: call.args.city ? { city: call.args.city as string } : undefined,
+                    name: args.name as string,
+                    specialty: args.specialty as string,
+                    address: args.city ? { city: args.city as string } : undefined,
                     isActive: true
                 });
+                message = "Arzt angelegt.";
+            } else if (call.name === "updateDoctor") {
+                actionResult = await updateDoctor(args.id as string, {
+                    name: args.name as string | undefined,
+                    specialty: args.specialty as string | undefined,
+                    address: args.city ? { city: args.city as string } : undefined
+                });
+                message = "Arzt aktualisiert.";
             }
 
             return new Response(JSON.stringify({
                 success: true,
                 action: call.name,
                 data: actionResult,
-                message: "Eintrag erfolgreich erstellt."
+                message: message
             }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
             });
         }
 
-        // No function called
         return new Response(JSON.stringify({
             success: false,
             message: response.text() || "Ich konnte leider keine Aktion ableiten."
         }), {
-            status: 200, // OK response, but no action
+            status: 200,
             headers: { "Content-Type": "application/json" }
         });
 

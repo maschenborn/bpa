@@ -24,8 +24,20 @@ const appointmentTypes = [
 ];
 
 export default function AppointmentForm({ appointment, doctors, onSuccess, onCancel }: AppointmentFormProps) {
+  // Helper to format date for input
+  const getInitialDate = () => {
+    if (!appointment?.date) return new Date().toISOString().split('T')[0];
+    try {
+      const d = new Date(appointment.date);
+      if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+      return d.toISOString().split('T')[0];
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
+  };
+
   const [formData, setFormData] = useState({
-    date: appointment?.date || new Date().toISOString().split('T')[0],
+    date: getInitialDate(),
     time: appointment?.time || '',
     doctorId: appointment?.doctorId || '',
     type: appointment?.type || 'consultation',

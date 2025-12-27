@@ -15,12 +15,24 @@ interface MedicationFormProps {
 }
 
 export default function MedicationForm({ medication, doctors, onSuccess, onCancel }: MedicationFormProps) {
+  // Helper to format date for input
+  const formatDateForInput = (dateStr?: string | Date) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: medication?.name || '',
     dosage: medication?.dosage || '',
     frequency: medication?.frequency || '',
-    startDate: medication?.startDate || new Date().toISOString().split('T')[0],
-    endDate: medication?.endDate || '',
+    startDate: medication?.startDate ? formatDateForInput(medication.startDate) : new Date().toISOString().split('T')[0],
+    endDate: formatDateForInput(medication?.endDate),
     prescribingDoctorId: medication?.prescribingDoctorId || '',
     purpose: medication?.purpose || '',
     sideEffects: medication?.sideEffects || '',

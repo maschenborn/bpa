@@ -37,8 +37,33 @@ const commonSymptoms = [
 ];
 
 export default function StatusForm({ status, onSuccess, onCancel }: StatusFormProps) {
+  // Helper to format date for input (YYYY-MM-DD from ISO string)
+  const getInitialDate = () => {
+    if (!status?.date) return new Date().toISOString().split('T')[0];
+    try {
+      // Handle both Date objects and strings
+      const d = new Date(status.date);
+      // Ensure we get a valid date string
+      if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+      return d.toISOString().split('T')[0];
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
+  };
+
+  // Helper to format time for input (HH:mm)
+  const getInitialTime = () => {
+    if (!status?.time) {
+      if (status) return ''; // Editing existing without time
+      // New entry - default to current time
+      return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+    return status.time;
+  };
+
   const [formData, setFormData] = useState({
-    date: status?.date || new Date().toISOString().split('T')[0],
+    date: getInitialDate(),
+    time: getInitialTime(),
     painLevel: status?.painLevel ?? 5,
     symptoms: status?.symptoms || [],
     generalCondition: status?.generalCondition || '',
@@ -121,7 +146,17 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
             onChange={handleChange('date')}
             fullWidth
             required
-            slotProps={{ inputLabel: { shrink: true } }}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <TextField
+            label="Uhrzeit"
+            type="time"
+            value={formData.time}
+            onChange={handleChange('time')}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
@@ -152,8 +187,8 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
             valueLabelDisplay="auto"
             color={
               formData.painLevel <= 2 ? 'success' :
-              formData.painLevel <= 4 ? 'info' :
-              formData.painLevel <= 6 ? 'warning' : 'error'
+                formData.painLevel <= 4 ? 'info' :
+                  formData.painLevel <= 6 ? 'warning' : 'error'
             }
           />
         </Grid>

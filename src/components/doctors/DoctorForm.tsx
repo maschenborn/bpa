@@ -18,9 +18,12 @@ export default function DoctorForm({ doctor, onSuccess, onCancel }: DoctorFormPr
     name: doctor?.name || '',
     specialty: doctor?.specialty || '',
     clinic: doctor?.clinic || '',
-    address: doctor?.address || '',
+    street: typeof doctor?.address === 'object' ? (doctor.address as any).street || '' : '',
+    zip: typeof doctor?.address === 'object' ? (doctor.address as any).zip || '' : '',
+    city: typeof doctor?.address === 'object' ? (doctor.address as any).city || '' : '',
     phone: doctor?.phone || '',
     email: doctor?.email || '',
+    website: doctor?.website || '',
     notes: doctor?.notes || '',
     isActive: doctor?.isActive ?? true,
   });
@@ -53,10 +56,26 @@ export default function DoctorForm({ doctor, onSuccess, onCancel }: DoctorFormPr
       const url = doctor ? `/api/doctors/${doctor.id}` : '/api/doctors';
       const method = doctor ? 'PUT' : 'POST';
 
+      const dataToSave = {
+        name: formData.name,
+        specialty: formData.specialty,
+        clinic: formData.clinic,
+        address: {
+          street: formData.street,
+          zip: formData.zip,
+          city: formData.city,
+        },
+        phone: formData.phone,
+        email: formData.email,
+        website: formData.website,
+        notes: formData.notes,
+        isActive: formData.isActive,
+      };
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSave),
       });
 
       if (!response.ok) {
@@ -106,12 +125,31 @@ export default function DoctorForm({ doctor, onSuccess, onCancel }: DoctorFormPr
       />
 
       <TextField
-        label="Adresse"
-        value={formData.address}
-        onChange={handleChange('address')}
+        label="Straße & Hausnummer"
+        value={formData.street}
+        onChange={handleChange('street')}
         fullWidth
         margin="normal"
       />
+
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <TextField
+          label="PLZ"
+          value={formData.zip}
+          onChange={handleChange('zip')}
+          fullWidth
+          margin="normal"
+          sx={{ flex: 1 }}
+        />
+        <TextField
+          label="Stadt"
+          value={formData.city}
+          onChange={handleChange('city')}
+          fullWidth
+          margin="normal"
+          sx={{ flex: 2 }}
+        />
+      </Box>
 
       <TextField
         label="Telefon"
@@ -128,6 +166,16 @@ export default function DoctorForm({ doctor, onSuccess, onCancel }: DoctorFormPr
         onChange={handleChange('email')}
         fullWidth
         margin="normal"
+      />
+
+      <TextField
+        label="Webseite"
+        type="url"
+        value={formData.website}
+        onChange={handleChange('website')}
+        fullWidth
+        margin="normal"
+        placeholder="https://..."
       />
 
       <TextField
