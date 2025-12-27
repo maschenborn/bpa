@@ -30,7 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview",
             systemInstruction: `Du bist ein medizinischer Assistent für Bine. Deine Aufgabe ist es, Bines gesprochene Eingaben in strukturierte Daten umzuwandeln und in der Datenbank zu speichern.
 
 WICHTIG - Ärzte-Kontext:
