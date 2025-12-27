@@ -29,7 +29,7 @@ const navItems = [
   { label: 'Ärzte', href: '/doctors', icon: <PersonIcon /> },
   { label: 'Termine', href: '/appointments', icon: <EventIcon /> },
   { label: 'Medikamente', href: '/medications', icon: <MedicationIcon /> },
-  { label: 'Tagesstatus', href: '/status', icon: <MonitorHeartIcon /> },
+  { label: 'Befinden', href: '/status', icon: <MonitorHeartIcon /> },
   { divider: true },
   { label: 'Dokumente', href: '/documents', icon: <DescriptionIcon /> },
 ];

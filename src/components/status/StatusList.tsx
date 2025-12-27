@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -14,11 +15,15 @@ import DialogActions from '@mui/material/DialogActions';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import LinearProgress from '@mui/material/LinearProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import type { Status } from '../../content/config';
 import StatusForm from './StatusForm';
+import DetailDrawer from '../ui/DetailDrawer';
 
 const moodLabels: Record<string, string> = {
   good: 'Gut',
@@ -43,6 +48,14 @@ export default function StatusList() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [statusToDelete, setStatusToDelete] = useState<Status | null>(null);
 
+  // Context menu state
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
+
+  // Detail drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerStatus, setDrawerStatus] = useState<Status | null>(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -55,15 +68,30 @@ export default function StatusList() {
       );
       setStatusEntries(data);
       setError(null);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData().then((data) => {
+      // Check for edit query param
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get('edit');
+      if (editId && data.length > 0) {
+        const toEdit = data.find((s: Status) => s.id === editId);
+        if (toEdit) {
+          setEditingStatus(toEdit);
+          setFormOpen(true);
+          // Clean URL without reload
+          window.history.replaceState({}, '', '/status');
+        }
+      }
+    });
   }, []);
 
   const formatDate = (dateStr: string) => {
@@ -87,14 +115,31 @@ export default function StatusList() {
     setFormOpen(true);
   };
 
-  const handleEdit = (status: Status) => {
-    setEditingStatus(status);
-    setFormOpen(true);
+  // Context menu handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, status: Status) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedStatus(status);
   };
 
-  const handleDeleteClick = (status: Status) => {
-    setStatusToDelete(status);
-    setDeleteConfirmOpen(true);
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedStatus) {
+      setEditingStatus(selectedStatus);
+      setFormOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedStatus) {
+      setStatusToDelete(selectedStatus);
+      setDeleteConfirmOpen(true);
+    }
+    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
@@ -107,6 +152,7 @@ export default function StatusList() {
       await fetchData();
       setDeleteConfirmOpen(false);
       setStatusToDelete(null);
+      setSelectedStatus(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Löschen');
     }
@@ -122,6 +168,24 @@ export default function StatusList() {
     handleFormClose();
   };
 
+  // Detail drawer handlers
+  const handleCardClick = (status: Status) => {
+    setDrawerStatus(status);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+  };
+
+  const handleDrawerEdit = () => {
+    if (drawerStatus) {
+      setEditingStatus(drawerStatus);
+      setFormOpen(true);
+      setDrawerOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -134,7 +198,7 @@ export default function StatusList() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Tagesstatus
+          Befinden
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           Status hinzufügen
@@ -150,17 +214,38 @@ export default function StatusList() {
       <Grid container spacing={3}>
         {statusEntries.map((status) => (
           <Grid key={status.id} size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              <CardActionArea onClick={() => handleCardClick(status)}>
+                <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Typography variant="h6">
                     {formatDate(status.date)}
                   </Typography>
-                  <Chip
-                    label={moodLabels[status.mood] || status.mood}
-                    color={moodColors[status.mood] || 'default'}
-                    size="small"
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Chip
+                      label={moodLabels[status.mood] || status.mood}
+                      color={moodColors[status.mood] || 'default'}
+                      size="small"
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMenuOpen(e, status);
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Box>
 
                 <Box sx={{ mb: 2 }}>
@@ -204,16 +289,8 @@ export default function StatusList() {
                     {status.notes}
                   </Typography>
                 )}
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <IconButton size="small" onClick={() => handleEdit(status)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDeleteClick(status)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </CardContent>
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         ))}
@@ -222,10 +299,22 @@ export default function StatusList() {
       {statusEntries.length === 0 && !loading && (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography color="text.secondary">
-            Noch kein Tagesstatus eingetragen.
+            Noch kein Befinden eingetragen.
           </Typography>
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Bearbeiten
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Löschen
+        </MenuItem>
+      </Menu>
 
       <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
         <DialogTitle>
@@ -254,6 +343,15 @@ export default function StatusList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        type="status"
+        data={drawerStatus}
+        onEdit={handleDrawerEdit}
+      />
     </Box>
   );
 }

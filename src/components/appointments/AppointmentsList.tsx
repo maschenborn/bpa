@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -13,13 +14,17 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EventIcon from '@mui/icons-material/Event';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import type { Appointment, Doctor } from '../../content/config';
 import AppointmentForm from './AppointmentForm';
+import DetailDrawer from '../ui/DetailDrawer';
 
 const typeLabels: Record<string, string> = {
   consultation: 'Beratung',
@@ -49,6 +54,14 @@ export default function AppointmentsList() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
 
+  // Context menu state
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+
+  // Detail drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerAppointment, setDrawerAppointment] = useState<Appointment | null>(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -66,15 +79,30 @@ export default function AppointmentsList() {
       setAppointments(appointmentsData);
       setDoctors(doctorsData);
       setError(null);
+      return appointmentsData;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData().then((data) => {
+      // Check for edit query param
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get('edit');
+      if (editId && data.length > 0) {
+        const toEdit = data.find((a: Appointment) => a.id === editId);
+        if (toEdit) {
+          setEditingAppointment(toEdit);
+          setFormOpen(true);
+          // Clean URL without reload
+          window.history.replaceState({}, '', '/appointments');
+        }
+      }
+    });
   }, []);
 
   const getDoctorName = (doctorId: string) => {
@@ -96,14 +124,31 @@ export default function AppointmentsList() {
     setFormOpen(true);
   };
 
-  const handleEdit = (appointment: Appointment) => {
-    setEditingAppointment(appointment);
-    setFormOpen(true);
+  // Context menu handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, appointment: Appointment) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedAppointment(appointment);
   };
 
-  const handleDeleteClick = (appointment: Appointment) => {
-    setAppointmentToDelete(appointment);
-    setDeleteConfirmOpen(true);
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedAppointment) {
+      setEditingAppointment(selectedAppointment);
+      setFormOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedAppointment) {
+      setAppointmentToDelete(selectedAppointment);
+      setDeleteConfirmOpen(true);
+    }
+    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
@@ -116,6 +161,7 @@ export default function AppointmentsList() {
       await fetchData();
       setDeleteConfirmOpen(false);
       setAppointmentToDelete(null);
+      setSelectedAppointment(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Löschen');
     }
@@ -129,6 +175,24 @@ export default function AppointmentsList() {
   const handleFormSuccess = () => {
     fetchData();
     handleFormClose();
+  };
+
+  // Detail drawer handlers
+  const handleCardClick = (appointment: Appointment) => {
+    setDrawerAppointment(appointment);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+  };
+
+  const handleDrawerEdit = () => {
+    if (drawerAppointment) {
+      setEditingAppointment(drawerAppointment);
+      setFormOpen(true);
+      setDrawerOpen(false);
+    }
   };
 
   if (loading) {
@@ -159,12 +223,22 @@ export default function AppointmentsList() {
       <Grid container spacing={3}>
         {appointments.map((appointment) => (
           <Grid key={appointment.id} size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              <CardActionArea onClick={() => handleCardClick(appointment)}>
+                <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
                     <EventIcon color="action" />
-                    <Typography variant="h6">
+                    <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {formatDate(appointment.date)}
                     </Typography>
                     {appointment.time && (
@@ -174,11 +248,22 @@ export default function AppointmentsList() {
                       </Box>
                     )}
                   </Box>
-                  <Chip
-                    label={typeLabels[appointment.type] || appointment.type}
-                    color={typeColors[appointment.type] || 'default'}
-                    size="small"
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Chip
+                      label={typeLabels[appointment.type] || appointment.type}
+                      color={typeColors[appointment.type] || 'default'}
+                      size="small"
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMenuOpen(e, appointment);
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Box>
 
                 <Typography variant="subtitle1" color="primary" gutterBottom>
@@ -206,16 +291,8 @@ export default function AppointmentsList() {
                     <strong>Empfehlung:</strong> {appointment.recommendations}
                   </Typography>
                 )}
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <IconButton size="small" onClick={() => handleEdit(appointment)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDeleteClick(appointment)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </CardContent>
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         ))}
@@ -228,6 +305,18 @@ export default function AppointmentsList() {
           </Typography>
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Bearbeiten
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Löschen
+        </MenuItem>
+      </Menu>
 
       <Dialog open={formOpen} onClose={handleFormClose} maxWidth="md" fullWidth>
         <DialogTitle>
@@ -257,6 +346,16 @@ export default function AppointmentsList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        type="appointment"
+        data={drawerAppointment}
+        onEdit={handleDrawerEdit}
+        doctors={doctors}
+      />
     </Box>
   );
 }

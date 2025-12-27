@@ -612,7 +612,7 @@ export async function getTimeline(options?: {
       type: 'status',
       date: new Date(status.date),
       time: status.time,
-      title: `Tagesstatus: Schmerz ${status.painLevel}/10`,
+      title: `Befinden: Schmerz ${status.painLevel}/10`,
       summary: status.symptoms.join(', ') || status.content.slice(0, 100),
       severity: severityMap[status.painLevel],
       relatedEntities: {

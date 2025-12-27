@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
@@ -31,7 +32,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
-import type { Doctor } from '../../content/config';
+import type { Doctor, Appointment, Medication, Status, Document } from '../../content/config';
+import DetailDrawer, { type DetailType } from '../ui/DetailDrawer';
 
 interface TimelineEntry {
   id: string;
@@ -65,10 +67,10 @@ const typeColors: Record<string, 'primary' | 'secondary' | 'success' | 'info'> =
 };
 
 const typeEditUrls: Record<string, string> = {
-  appointment: '/appointments/edit',
-  medication: '/medications/edit',
-  status: '/status/edit',
-  document: '/documents/edit',
+  appointment: '/appointments',
+  medication: '/medications',
+  status: '/status',
+  document: '/documents',
 };
 
 export default function Timeline() {
@@ -99,6 +101,10 @@ export default function Timeline() {
     message: '',
     severity: 'success',
   });
+
+  // Detail drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerEntry, setDrawerEntry] = useState<TimelineEntry | null>(null);
 
   const activeFilterCount = [startDate, endDate, selectedDoctorId, minPainLevel, maxPainLevel].filter(Boolean).length + selectedTypes.length;
 
@@ -171,7 +177,7 @@ export default function Timeline() {
   const handleEdit = () => {
     if (selectedEntry) {
       const baseUrl = typeEditUrls[selectedEntry.type];
-      window.location.href = `${baseUrl}/${selectedEntry.id}`;
+      window.location.href = `${baseUrl}?edit=${selectedEntry.id}`;
     }
     handleMenuClose();
   };
@@ -215,6 +221,112 @@ export default function Timeline() {
     setSelectedDoctorId('');
     setMinPainLevel('');
     setMaxPainLevel('');
+  };
+
+  // Detail drawer handlers
+  const handleCardClick = (entry: TimelineEntry) => {
+    setDrawerEntry(entry);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+  };
+
+  const handleDrawerEdit = () => {
+    if (drawerEntry) {
+      const baseUrl = typeEditUrls[drawerEntry.type];
+      window.location.href = `${baseUrl}?edit=${drawerEntry.id}`;
+    }
+  };
+
+  // Convert TimelineEntry data to the correct type for the drawer
+  const getDrawerData = (): Appointment | Medication | Status | Document | null => {
+    if (!drawerEntry) return null;
+
+    const data = drawerEntry.data as Record<string, unknown>;
+
+    // Reconstruct the full object from the timeline entry data
+    switch (drawerEntry.type) {
+      case 'appointment':
+        return {
+          id: drawerEntry.id,
+          date: new Date(drawerEntry.date),
+          time: drawerEntry.time,
+          doctorId: data.doctorId as string,
+          type: data.type as string || 'consultation',
+          reason: data.reason as string || drawerEntry.description || '',
+          findings: data.findings as string,
+          diagnosis: data.diagnosis as string,
+          recommendations: data.recommendations as string[] || [],
+          prescriptions: data.prescriptions as string[] || [],
+          documentIds: data.documentIds as string[] || [],
+          notes: data.notes as string,
+          followUpDate: data.followUpDate ? new Date(data.followUpDate as string) : undefined,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Appointment;
+
+      case 'medication':
+        return {
+          id: drawerEntry.id,
+          name: drawerEntry.title,
+          genericName: data.genericName as string,
+          dosage: data.dosage as string || '',
+          frequency: data.frequency as string || '',
+          route: data.route as string || 'oral',
+          prescribingDoctorId: data.prescribingDoctorId as string,
+          appointmentId: data.appointmentId as string,
+          startDate: new Date(drawerEntry.date),
+          endDate: data.endDate ? new Date(data.endDate as string) : undefined,
+          isActive: data.isActive as boolean ?? true,
+          purpose: data.purpose as string,
+          effects: data.effects as string,
+          sideEffects: data.sideEffects as string[] || [],
+          notes: data.notes as string,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Medication;
+
+      case 'status':
+        return {
+          id: drawerEntry.id,
+          date: new Date(drawerEntry.date),
+          time: drawerEntry.time,
+          painLevel: data.painLevel as number || 0,
+          symptoms: data.symptoms as string[] || [],
+          affectedAreas: data.affectedAreas as string[] || [],
+          generalCondition: data.generalCondition as string,
+          sleep: data.sleep as string,
+          appetite: data.appetite as string,
+          mood: data.mood as string,
+          notes: data.notes as string || drawerEntry.description,
+          medicationsTaken: data.medicationsTaken as string[] || [],
+          documentIds: data.documentIds as string[] || [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Status;
+
+      case 'document':
+        return {
+          id: drawerEntry.id,
+          type: data.type as string || 'Sonstiges',
+          title: drawerEntry.title,
+          description: drawerEntry.description,
+          filePath: data.filePath as string || '',
+          fileType: data.fileType as string || 'pdf',
+          fileSize: data.fileSize as number,
+          date: new Date(drawerEntry.date),
+          doctorId: data.doctorId as string,
+          appointmentId: data.appointmentId as string,
+          tags: data.tags as string[] || [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Document;
+
+      default:
+        return null;
+    }
   };
 
   const renderEntryDetails = (entry: TimelineEntry) => {
@@ -457,52 +569,70 @@ export default function Timeline() {
                 }}
               />
 
-              <Card sx={{ ml: { xs: 1, sm: 2 }, borderRadius: 2 }}>
-                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
-                      <Box sx={{ color: `${typeColors[entry.type]}.main`, mt: 0.5, flexShrink: 0 }}>
-                        {typeIcons[entry.type]}
+              <Card
+                sx={{
+                  ml: { xs: 1, sm: 2 },
+                  borderRadius: 2,
+                  transition: 'box-shadow 0.2s, transform 0.2s',
+                  '&:hover': {
+                    boxShadow: 4,
+                    transform: 'translateY(-1px)',
+                  },
+                }}
+              >
+                <CardActionArea
+                  onClick={() => handleCardClick(entry)}
+                  sx={{ display: 'block', textAlign: 'left' }}
+                >
+                  <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+                        <Box sx={{ color: `${typeColors[entry.type]}.main`, mt: 0.5, flexShrink: 0 }}>
+                          {typeIcons[entry.type]}
+                        </Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: { xs: '0.9rem', sm: '1rem' },
+                              lineHeight: 1.3,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {entry.title}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                          >
+                            {formatDate(entry.date, entry.time)}
+                            {entry.type === 'appointment' && entry.data.doctorId && (
+                              <> • {getDoctorName(entry.data.doctorId as string)}</>
+                            )}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography
-                          variant="subtitle1"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: { xs: '0.9rem', sm: '1rem' },
-                            lineHeight: 1.3,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {entry.title}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                        >
-                          {formatDate(entry.date, entry.time)}
-                          {entry.type === 'appointment' && entry.data.doctorId && (
-                            <> • {getDoctorName(entry.data.doctorId as string)}</>
-                          )}
-                        </Typography>
-                      </Box>
+
+                      {/* Context Menu Button */}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, entry);
+                        }}
+                        sx={{ ml: 0.5, flexShrink: 0 }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </Box>
 
-                    {/* Context Menu Button */}
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, entry)}
-                      sx={{ ml: 0.5, flexShrink: 0 }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-
-                  {renderEntryDetails(entry)}
-                </CardContent>
+                    {renderEntryDetails(entry)}
+                  </CardContent>
+                </CardActionArea>
               </Card>
             </Box>
           ))}
@@ -549,6 +679,16 @@ export default function Timeline() {
         autoHideDuration={3000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         message={snackbar.message}
+      />
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        type={drawerEntry?.type as DetailType | null}
+        data={getDrawerData()}
+        onEdit={handleDrawerEdit}
+        doctors={doctors}
       />
     </Box>
   );

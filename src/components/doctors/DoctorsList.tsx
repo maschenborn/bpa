@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -13,14 +14,18 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import type { Doctor, Address } from '../../content/config';
 import DoctorForm from './DoctorForm';
+import DetailDrawer from '../ui/DetailDrawer';
 
 // Helper to format address (can be string or object)
 function formatAddress(address: Address | undefined): string {
@@ -38,6 +43,14 @@ export default function DoctorsList() {
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [doctorToDelete, setDoctorToDelete] = useState<Doctor | null>(null);
+
+  // Context menu state
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+
+  // Detail drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDoctor, setDrawerDoctor] = useState<Doctor | null>(null);
 
   const fetchDoctors = async () => {
     try {
@@ -63,14 +76,31 @@ export default function DoctorsList() {
     setFormOpen(true);
   };
 
-  const handleEdit = (doctor: Doctor) => {
-    setEditingDoctor(doctor);
-    setFormOpen(true);
+  // Context menu handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, doctor: Doctor) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedDoctor(doctor);
   };
 
-  const handleDeleteClick = (doctor: Doctor) => {
-    setDoctorToDelete(doctor);
-    setDeleteConfirmOpen(true);
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedDoctor) {
+      setEditingDoctor(selectedDoctor);
+      setFormOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedDoctor) {
+      setDoctorToDelete(selectedDoctor);
+      setDeleteConfirmOpen(true);
+    }
+    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
@@ -96,6 +126,24 @@ export default function DoctorsList() {
   const handleFormSuccess = () => {
     fetchDoctors();
     handleFormClose();
+  };
+
+  // Detail drawer handlers
+  const handleCardClick = (doctor: Doctor) => {
+    setDrawerDoctor(doctor);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+  };
+
+  const handleDrawerEdit = () => {
+    if (drawerDoctor) {
+      setEditingDoctor(drawerDoctor);
+      setFormOpen(true);
+      setDrawerOpen(false);
+    }
   };
 
   if (loading) {
@@ -126,74 +174,85 @@ export default function DoctorsList() {
       <Grid container spacing={3}>
         {doctors.map((doctor) => (
           <Grid key={doctor.id} size={{ xs: 12, md: 6, lg: 4 }}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="h6" component="h2">
-                      {doctor.name}
-                    </Typography>
-                    <Typography color="text.secondary" gutterBottom>
-                      {doctor.specialty}
-                    </Typography>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              <CardActionArea onClick={() => handleCardClick(doctor)}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h6" component="h2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {doctor.name}
+                      </Typography>
+                      <Typography color="text.secondary" gutterBottom>
+                        {doctor.specialty}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Chip
+                        label={doctor.isActive ? 'Aktiv' : 'Inaktiv'}
+                        color={doctor.isActive ? 'success' : 'default'}
+                        size="small"
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, doctor);
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
-                  <Box>
-                    <Chip
-                      label={doctor.isActive ? 'Aktiv' : 'Inaktiv'}
-                      color={doctor.isActive ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </Box>
-                </Box>
 
-                {doctor.clinic && (
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {doctor.clinic}
-                  </Typography>
-                )}
-
-                {doctor.address && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                    <LocationOnIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {formatAddress(doctor.address)}
+                  {doctor.clinic && (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      {doctor.clinic}
                     </Typography>
-                  </Box>
-                )}
+                  )}
 
-                {doctor.phone && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                    <PhoneIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {doctor.phone}
+                  {doctor.address && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                      <LocationOnIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {formatAddress(doctor.address)}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {doctor.phone && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                      <PhoneIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {doctor.phone}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {doctor.email && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                      <EmailIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {doctor.email}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {doctor.notes && (
+                    <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                      {doctor.notes}
                     </Typography>
-                  </Box>
-                )}
-
-                {doctor.email && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                    <EmailIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {doctor.email}
-                    </Typography>
-                  </Box>
-                )}
-
-                {doctor.notes && (
-                  <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-                    {doctor.notes}
-                  </Typography>
-                )}
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <IconButton size="small" onClick={() => handleEdit(doctor)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDeleteClick(doctor)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </CardContent>
+                  )}
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         ))}
@@ -206,6 +265,18 @@ export default function DoctorsList() {
           </Typography>
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Bearbeiten
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Löschen
+        </MenuItem>
+      </Menu>
 
       {/* Form Dialog */}
       <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
@@ -236,6 +307,15 @@ export default function DoctorsList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        type="doctor"
+        data={drawerDoctor}
+        onEdit={handleDrawerEdit}
+      />
     </Box>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -13,14 +14,18 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PersonIcon from '@mui/icons-material/Person';
 import EventIcon from '@mui/icons-material/Event';
 import type { Document, Doctor } from '../../content/config';
 import DocumentForm from './DocumentForm';
+import DetailDrawer from '../ui/DetailDrawer';
 
 // Icon mapping for document types
 const TYPE_COLORS: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'> = {
@@ -44,6 +49,14 @@ export default function DocumentsList() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
 
+  // Context menu state
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+
+  // Detail drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDocument, setDrawerDocument] = useState<Document | null>(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -56,15 +69,30 @@ export default function DocumentsList() {
       setDocuments(docs);
       setDoctors(docs2);
       setError(null);
+      return docs;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData().then((data) => {
+      // Check for edit query param
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get('edit');
+      if (editId && data.length > 0) {
+        const toEdit = data.find((d: Document) => d.id === editId);
+        if (toEdit) {
+          setEditingDocument(toEdit);
+          setFormOpen(true);
+          // Clean URL without reload
+          window.history.replaceState({}, '', '/documents');
+        }
+      }
+    });
   }, []);
 
   const handleAdd = () => {
@@ -72,14 +100,31 @@ export default function DocumentsList() {
     setFormOpen(true);
   };
 
-  const handleEdit = (doc: Document) => {
-    setEditingDocument(doc);
-    setFormOpen(true);
+  // Context menu handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, doc: Document) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedDocument(doc);
   };
 
-  const handleDeleteClick = (doc: Document) => {
-    setDocumentToDelete(doc);
-    setDeleteConfirmOpen(true);
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedDocument) {
+      setEditingDocument(selectedDocument);
+      setFormOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedDocument) {
+      setDocumentToDelete(selectedDocument);
+      setDeleteConfirmOpen(true);
+    }
+    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
@@ -92,6 +137,7 @@ export default function DocumentsList() {
       await fetchData();
       setDeleteConfirmOpen(false);
       setDocumentToDelete(null);
+      setSelectedDocument(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Löschen');
     }
@@ -105,6 +151,24 @@ export default function DocumentsList() {
   const handleFormSuccess = () => {
     fetchData();
     handleFormClose();
+  };
+
+  // Detail drawer handlers
+  const handleCardClick = (doc: Document) => {
+    setDrawerDocument(doc);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+  };
+
+  const handleDrawerEdit = () => {
+    if (drawerDocument) {
+      setEditingDocument(drawerDocument);
+      setFormOpen(true);
+      setDrawerOpen(false);
+    }
   };
 
   const getDoctorName = (doctorId?: string) => {
@@ -145,20 +209,41 @@ export default function DocumentsList() {
       <Grid container spacing={3}>
         {documents.map((doc) => (
           <Grid key={doc.id} size={{ xs: 12, sm: 6, lg: 4 }}>
-            <Card>
-              <CardContent>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              <CardActionArea onClick={() => handleCardClick(doc)}>
+                <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
                     <DescriptionIcon color="action" />
-                    <Typography variant="h6" component="h2" sx={{ fontSize: '1.1rem' }}>
+                    <Typography variant="h6" component="h2" sx={{ fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {doc.title}
                     </Typography>
                   </Box>
-                  <Chip
-                    label={doc.type}
-                    size="small"
-                    color={TYPE_COLORS[doc.type] || 'default'}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Chip
+                      label={doc.type}
+                      size="small"
+                      color={TYPE_COLORS[doc.type] || 'default'}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMenuOpen(e, doc);
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Box>
 
                 <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
@@ -200,16 +285,8 @@ export default function DocumentsList() {
                 <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
                   {doc.filePath}
                 </Typography>
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <IconButton size="small" onClick={() => handleEdit(doc)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDeleteClick(doc)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </CardContent>
+                </CardContent>
+              </CardActionArea>
             </Card>
           </Grid>
         ))}
@@ -222,6 +299,18 @@ export default function DocumentsList() {
           </Typography>
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Bearbeiten
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Löschen
+        </MenuItem>
+      </Menu>
 
       {/* Form Dialog */}
       <Dialog open={formOpen} onClose={handleFormClose} maxWidth="sm" fullWidth>
@@ -252,6 +341,16 @@ export default function DocumentsList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Detail Drawer */}
+      <DetailDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        type="document"
+        data={drawerDocument}
+        onEdit={handleDrawerEdit}
+        doctors={doctors}
+      />
     </Box>
   );
 }
