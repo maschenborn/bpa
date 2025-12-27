@@ -671,8 +671,21 @@ export async function getTimeline(options?: {
     });
   }
 
-  // Sort by date descending
-  return filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
+  // Sort by date + time descending (newest first)
+  // Combine date and time for proper ordering within the same day
+  const getSortableTimestamp = (entry: TimelineEntry): number => {
+    const baseTime = entry.date.getTime();
+    if (entry.time) {
+      // Parse time string (expected format: "HH:MM" or "HH:MM:SS")
+      const [hours, minutes, seconds = 0] = entry.time.split(':').map(Number);
+      // Add milliseconds for time-of-day
+      return baseTime + (hours * 3600 + minutes * 60 + Number(seconds)) * 1000;
+    }
+    // No time specified - use end of day to sort at bottom of that day
+    return baseTime;
+  };
+
+  return filtered.sort((a, b) => getSortableTimestamp(b) - getSortableTimestamp(a));
 }
 
 export { generateId, slugify };

@@ -37,6 +37,7 @@ interface TimelineEntry {
   id: string;
   type: 'appointment' | 'medication' | 'status' | 'document';
   date: string;
+  time?: string;
   title: string;
   description?: string;
   data: Record<string, unknown>;
@@ -137,13 +138,18 @@ export default function Timeline() {
     fetchData();
   }, [startDate, endDate, selectedTypes, selectedDoctorId, minPainLevel, maxPainLevel]);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('de-DE', {
+  const formatDate = (dateStr: string, timeStr?: string) => {
+    const date = new Date(dateStr);
+    const dateFormatted = date.toLocaleDateString('de-DE', {
       weekday: 'short',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     });
+    if (timeStr) {
+      return `${dateFormatted}, ${timeStr} Uhr`;
+    }
+    return dateFormatted;
   };
 
   const getDoctorName = (doctorId?: string) => {
@@ -477,7 +483,7 @@ export default function Timeline() {
                           color="text.secondary"
                           sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
                         >
-                          {formatDate(entry.date)}
+                          {formatDate(entry.date, entry.time)}
                           {entry.type === 'appointment' && entry.data.doctorId && (
                             <> • {getDoctorName(entry.data.doctorId as string)}</>
                           )}
