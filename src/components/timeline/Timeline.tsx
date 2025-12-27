@@ -12,12 +12,25 @@ import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
 import LinearProgress from '@mui/material/LinearProgress';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import Badge from '@mui/material/Badge';
+import Snackbar from '@mui/material/Snackbar';
 import EventIcon from '@mui/icons-material/Event';
 import MedicationIcon from '@mui/icons-material/Medication';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import DescriptionIcon from '@mui/icons-material/Description';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 import type { Doctor } from '../../content/config';
 
 interface TimelineEntry {
@@ -50,11 +63,21 @@ const typeColors: Record<string, 'primary' | 'secondary' | 'success' | 'info'> =
   document: 'info',
 };
 
+const typeEditUrls: Record<string, string> = {
+  appointment: '/appointments/edit',
+  medication: '/medications/edit',
+  status: '/status/edit',
+  document: '/documents/edit',
+};
+
 export default function Timeline() {
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filter dialog
+  const [filterOpen, setFilterOpen] = useState(false);
 
   // Filters
   const [startDate, setStartDate] = useState('');
@@ -64,11 +87,24 @@ export default function Timeline() {
   const [minPainLevel, setMinPainLevel] = useState('');
   const [maxPainLevel, setMaxPainLevel] = useState('');
 
+  // Context menu
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(null);
+
+  // Delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const activeFilterCount = [startDate, endDate, selectedDoctorId, minPainLevel, maxPainLevel].filter(Boolean).length + selectedTypes.length;
+
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      // Build query params
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
@@ -116,6 +152,65 @@ export default function Timeline() {
     return doctor?.name;
   };
 
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, entry: TimelineEntry) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedEntry(entry);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedEntry) {
+      const baseUrl = typeEditUrls[selectedEntry.type];
+      window.location.href = `${baseUrl}/${selectedEntry.id}`;
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteClick = () => {
+    handleMenuClose();
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedEntry) return;
+
+    try {
+      const typeToEndpoint: Record<string, string> = {
+        appointment: 'appointments',
+        medication: 'medications',
+        status: 'status',
+        document: 'documents',
+      };
+
+      const res = await fetch(`/api/${typeToEndpoint[selectedEntry.type]}/${selectedEntry.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Löschen fehlgeschlagen');
+
+      setSnackbar({ open: true, message: 'Eintrag gelöscht', severity: 'success' });
+      fetchData();
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Fehler beim Löschen', severity: 'error' });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedEntry(null);
+    }
+  };
+
+  const clearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setSelectedTypes([]);
+    setSelectedDoctorId('');
+    setMinPainLevel('');
+    setMaxPainLevel('');
+  };
+
   const renderEntryDetails = (entry: TimelineEntry) => {
     const data = entry.data as Record<string, unknown>;
 
@@ -124,18 +219,13 @@ export default function Timeline() {
         return (
           <>
             {data.findings && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 <strong>Befund:</strong> {String(data.findings)}
               </Typography>
             )}
             {data.diagnosis && (
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 <strong>Diagnose:</strong> {String(data.diagnosis)}
-              </Typography>
-            )}
-            {data.recommendations && (
-              <Typography variant="body2">
-                <strong>Empfehlung:</strong> {String(data.recommendations)}
               </Typography>
             )}
           </>
@@ -143,16 +233,9 @@ export default function Timeline() {
 
       case 'medication':
         return (
-          <>
-            <Typography variant="body2">
-              {String(data.dosage)} - {String(data.frequency)}
-            </Typography>
-            {data.purpose && (
-              <Typography variant="body2" sx={{ mt: 0.5 }}>
-                <strong>Zweck:</strong> {String(data.purpose)}
-              </Typography>
-            )}
-          </>
+          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+            {String(data.dosage)} - {String(data.frequency)}
+          </Typography>
         );
 
       case 'status':
@@ -161,47 +244,38 @@ export default function Timeline() {
         return (
           <>
             <Box sx={{ mt: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="body2">Schmerz: {painLevel}/10</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, minWidth: 70 }}>
+                  Schmerz: {painLevel}/10
+                </Typography>
                 <Box sx={{ flex: 1 }}>
                   <LinearProgress
                     variant="determinate"
                     value={painLevel * 10}
                     color={painLevel <= 3 ? 'success' : painLevel <= 6 ? 'warning' : 'error'}
-                    sx={{ height: 6, borderRadius: 3 }}
+                    sx={{ height: 4, borderRadius: 2 }}
                   />
                 </Box>
               </Box>
             </Box>
             {symptoms.length > 0 && (
               <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {symptoms.map((symptom, idx) => (
-                  <Chip key={idx} label={symptom} size="small" variant="outlined" />
+                {symptoms.slice(0, 3).map((symptom, idx) => (
+                  <Chip key={idx} label={symptom} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
                 ))}
+                {symptoms.length > 3 && (
+                  <Chip label={`+${symptoms.length - 3}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                )}
               </Box>
-            )}
-            {data.notes && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                {String(data.notes)}
-              </Typography>
             )}
           </>
         );
 
       case 'document':
         return (
-          <>
-            <Typography variant="body2">
-              Typ: {String(data.fileType).toUpperCase()}
-            </Typography>
-            {(data.tags as string[])?.length > 0 && (
-              <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {(data.tags as string[]).map((tag, idx) => (
-                  <Chip key={idx} label={tag} size="small" />
-                ))}
-              </Box>
-            )}
-          </>
+          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+            {String(data.fileType).toUpperCase()}
+          </Typography>
         );
 
       default:
@@ -210,98 +284,130 @@ export default function Timeline() {
   };
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Timeline
-      </Typography>
-
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Filter
+    <Box sx={{ pb: 2 }}>
+      {/* Header with Filter Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 700, fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+          Timeline
         </Typography>
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <TextField
-              label="Von"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <TextField
-              label="Bis"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel>Typen</InputLabel>
-              <Select
-                multiple
-                value={selectedTypes}
-                onChange={(e) => setSelectedTypes(e.target.value as string[])}
-                label="Typen"
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
-                      <Chip key={value} label={typeLabels[value]} size="small" />
-                    ))}
-                  </Box>
-                )}
+        <Badge badgeContent={activeFilterCount} color="primary">
+          <IconButton
+            onClick={() => setFilterOpen(true)}
+            sx={{
+              bgcolor: activeFilterCount > 0 ? 'primary.light' : 'action.hover',
+              '&:hover': { bgcolor: activeFilterCount > 0 ? 'primary.main' : 'action.selected' },
+            }}
+          >
+            <FilterListIcon sx={{ color: activeFilterCount > 0 ? 'white' : 'text.primary' }} />
+          </IconButton>
+        </Badge>
+      </Box>
+
+      {/* Filter Dialog */}
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Filter
+          <IconButton onClick={() => setFilterOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid size={{ xs: 6 }}>
+              <TextField
+                label="Von"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField
+                label="Bis"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Typen</InputLabel>
+                <Select
+                  multiple
+                  value={selectedTypes}
+                  onChange={(e) => setSelectedTypes(e.target.value as string[])}
+                  label="Typen"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={typeLabels[value]} size="small" />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  <MenuItem value="appointment">Termine</MenuItem>
+                  <MenuItem value="medication">Medikamente</MenuItem>
+                  <MenuItem value="status">Status</MenuItem>
+                  <MenuItem value="document">Dokumente</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                label="Arzt"
+                select
+                value={selectedDoctorId}
+                onChange={(e) => setSelectedDoctorId(e.target.value)}
+                fullWidth
+                size="small"
               >
-                <MenuItem value="appointment">Termine</MenuItem>
-                <MenuItem value="medication">Medikamente</MenuItem>
-                <MenuItem value="status">Status</MenuItem>
-                <MenuItem value="document">Dokumente</MenuItem>
-              </Select>
-            </FormControl>
+                <MenuItem value="">— Alle —</MenuItem>
+                {doctors.map((doctor) => (
+                  <MenuItem key={doctor.id} value={doctor.id}>
+                    {doctor.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField
+                label="Min. Schmerz"
+                type="number"
+                value={minPainLevel}
+                onChange={(e) => setMinPainLevel(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{ htmlInput: { min: 0, max: 10 } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField
+                label="Max. Schmerz"
+                type="number"
+                value={maxPainLevel}
+                onChange={(e) => setMaxPainLevel(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{ htmlInput: { min: 0, max: 10 } }}
+              />
+            </Grid>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <TextField
-              label="Arzt"
-              select
-              value={selectedDoctorId}
-              onChange={(e) => setSelectedDoctorId(e.target.value)}
-              fullWidth
-            >
-              <MenuItem value="">— Alle —</MenuItem>
-              {doctors.map((doctor) => (
-                <MenuItem key={doctor.id} value={doctor.id}>
-                  {doctor.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <TextField
-              label="Min. Schmerz"
-              type="number"
-              value={minPainLevel}
-              onChange={(e) => setMinPainLevel(e.target.value)}
-              fullWidth
-              slotProps={{ htmlInput: { min: 0, max: 10 } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <TextField
-              label="Max. Schmerz"
-              type="number"
-              value={maxPainLevel}
-              onChange={(e) => setMaxPainLevel(e.target.value)}
-              fullWidth
-              slotProps={{ htmlInput: { min: 0, max: 10 } }}
-            />
-          </Grid>
-        </Grid>
-      </Paper>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={clearFilters} color="inherit">
+            Zurücksetzen
+          </Button>
+          <Button onClick={() => setFilterOpen(false)} variant="contained">
+            Anwenden
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -314,12 +420,12 @@ export default function Timeline() {
           <CircularProgress />
         </Box>
       ) : (
-        <Box sx={{ position: 'relative', pl: 3 }}>
+        <Box sx={{ position: 'relative', pl: { xs: 2, sm: 3 } }}>
           {/* Timeline line */}
           <Box
             sx={{
               position: 'absolute',
-              left: 12,
+              left: { xs: 6, sm: 10 },
               top: 0,
               bottom: 0,
               width: 2,
@@ -327,16 +433,16 @@ export default function Timeline() {
             }}
           />
 
-          {entries.map((entry, index) => (
-            <Box key={entry.id} sx={{ position: 'relative', mb: 3 }}>
+          {entries.map((entry) => (
+            <Box key={entry.id} sx={{ position: 'relative', mb: 2 }}>
               {/* Timeline dot */}
               <Box
                 sx={{
                   position: 'absolute',
-                  left: -19,
-                  top: 16,
-                  width: 12,
-                  height: 12,
+                  left: { xs: -14, sm: -18 },
+                  top: 12,
+                  width: { xs: 10, sm: 12 },
+                  height: { xs: 10, sm: 12 },
                   borderRadius: '50%',
                   bgcolor: `${typeColors[entry.type]}.main`,
                   border: 2,
@@ -345,18 +451,32 @@ export default function Timeline() {
                 }}
               />
 
-              <Card sx={{ ml: 2 }}>
-                <CardContent>
+              <Card sx={{ ml: { xs: 1, sm: 2 }, borderRadius: 2 }}>
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ color: `${typeColors[entry.type]}.main` }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flex: 1, minWidth: 0 }}>
+                      <Box sx={{ color: `${typeColors[entry.type]}.main`, mt: 0.5, flexShrink: 0 }}>
                         {typeIcons[entry.type]}
                       </Box>
-                      <Box>
-                        <Typography variant="h6" component="div">
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography
+                          variant="subtitle1"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: { xs: '0.9rem', sm: '1rem' },
+                            lineHeight: 1.3,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           {entry.title}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                        >
                           {formatDate(entry.date)}
                           {entry.type === 'appointment' && entry.data.doctorId && (
                             <> • {getDoctorName(entry.data.doctorId as string)}</>
@@ -364,18 +484,16 @@ export default function Timeline() {
                         </Typography>
                       </Box>
                     </Box>
-                    <Chip
-                      label={typeLabels[entry.type]}
-                      color={typeColors[entry.type]}
-                      size="small"
-                    />
-                  </Box>
 
-                  {entry.description && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      {entry.description}
-                    </Typography>
-                  )}
+                    {/* Context Menu Button */}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, entry)}
+                      sx={{ ml: 0.5, flexShrink: 0 }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
 
                   {renderEntryDetails(entry)}
                 </CardContent>
@@ -385,13 +503,47 @@ export default function Timeline() {
 
           {entries.length === 0 && (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography color="text.secondary">
-                Keine Einträge gefunden.
-              </Typography>
+              <Typography color="text.secondary">Keine Einträge gefunden.</Typography>
             </Box>
           )}
         </Box>
       )}
+
+      {/* Context Menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Bearbeiten
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Löschen
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Eintrag löschen?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Möchtest du "{selectedEntry?.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Löschen
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 }
