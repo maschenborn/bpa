@@ -94,8 +94,13 @@ REGELN:
                                 type: SchemaType.OBJECT,
                                 properties: {
                                     painLevel: { type: SchemaType.NUMBER, description: "Schmerzlevel 0-10" },
+                                    date: { type: SchemaType.STRING, description: "Datum (YYYY-MM-DD). Default: Heute." },
+                                    time: { type: SchemaType.STRING, description: "Uhrzeit (HH:MM). Wichtig: Wenn User 'um 7' sagt, ist 07:00 gemeint." },
                                     symptoms: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Symptome" },
-                                    mood: { type: SchemaType.STRING },
+                                    mood: {
+                                        type: SchemaType.STRING,
+                                        description: "Stimmung: good (Gut), okay (Okay), bad (Schlecht), terrible (Sehr schlecht)"
+                                    },
                                     notes: { type: SchemaType.STRING }
                                 },
                                 required: ["painLevel"]
@@ -109,8 +114,13 @@ REGELN:
                                 properties: {
                                     id: { type: SchemaType.STRING, description: "ID des Status" },
                                     painLevel: { type: SchemaType.NUMBER },
+                                    date: { type: SchemaType.STRING },
+                                    time: { type: SchemaType.STRING },
                                     symptoms: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-                                    mood: { type: SchemaType.STRING },
+                                    mood: {
+                                        type: SchemaType.STRING,
+                                        description: "Stimmung: good (Gut), okay (Okay), bad (Schlecht), terrible (Sehr schlecht)"
+                                    },
                                     notes: { type: SchemaType.STRING }
                                 },
                                 required: ["id"]
@@ -123,6 +133,7 @@ REGELN:
                                 type: SchemaType.OBJECT,
                                 properties: {
                                     date: { type: SchemaType.STRING },
+                                    time: { type: SchemaType.STRING },
                                     doctorId: { type: SchemaType.STRING },
                                     reason: { type: SchemaType.STRING },
                                     type: { type: SchemaType.STRING }
@@ -138,6 +149,7 @@ REGELN:
                                 properties: {
                                     id: { type: SchemaType.STRING },
                                     date: { type: SchemaType.STRING },
+                                    time: { type: SchemaType.STRING },
                                     doctorId: { type: SchemaType.STRING },
                                     reason: { type: SchemaType.STRING },
                                     type: { type: SchemaType.STRING }
@@ -226,7 +238,8 @@ REGELN:
                     symptoms: (args.symptoms as string[]) || [],
                     mood: (args.mood as string) || undefined,
                     content: (args.notes as string) || "Spracheingabe",
-                    date: new Date(),
+                    date: args.date ? new Date(args.date as string) : new Date(),
+                    time: args.time as string | undefined,
                     affectedAreas: [],
                     medicationsTaken: [],
                     documentIds: []
@@ -238,6 +251,8 @@ REGELN:
                     symptoms: args.symptoms as string[] | undefined,
                     mood: args.mood as string | undefined,
                     content: args.notes as string | undefined,
+                    date: args.date ? new Date(args.date as string) : undefined,
+                    time: args.time as string | undefined,
                 });
                 message = "Status aktualisiert.";
             } else if (call.name === "createAppointment") {
