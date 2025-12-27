@@ -50,6 +50,12 @@ Hochgeladene Dokumente in `/public/documents/YYYY-MM/`.
 - Kein Remote im ersten Schritt
 - NIEMALS `git add .` - Dateien einzeln hinzufügen
 
+## Gemini API
+
+- Modell: `gemini-3-flash-preview` - NICHT ohne Rücksprache ändern!
+- API-Key in `.env` als `GOOGLE_API_KEY`
+- Assistant-Endpoint: `/api/assistant`
+
 ## MCP-Tools
 
 - `mui-mcp` - MUI-Dokumentation
