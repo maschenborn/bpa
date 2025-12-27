@@ -81,15 +81,22 @@ export default function StatusList() {
 
   useEffect(() => {
     fetchData().then((data) => {
-      // Check for edit query param
       const params = new URLSearchParams(window.location.search);
+
+      // Check for 'new' query param (for PWA shortcut)
+      if (params.get('new') === '1') {
+        setFormOpen(true);
+        window.history.replaceState({}, '', '/status');
+        return;
+      }
+
+      // Check for edit query param
       const editId = params.get('edit');
       if (editId && data.length > 0) {
         const toEdit = data.find((s: Status) => s.id === editId);
         if (toEdit) {
           setEditingStatus(toEdit);
           setFormOpen(true);
-          // Clean URL without reload
           window.history.replaceState({}, '', '/status');
         }
       }
