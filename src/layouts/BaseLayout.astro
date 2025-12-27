@@ -1,6 +1,7 @@
 ---
 import ThemeProvider from '../components/layout/ThemeProvider';
 import AppShell from '../components/layout/AppShell';
+import VoiceAssistant from '../components/Assistant/VoiceAssistant';
 
 interface Props {
   title: string;
@@ -23,6 +24,7 @@ const { title } = Astro.props;
       <AppShell title={title} client:load>
         <slot />
       </AppShell>
+      <VoiceAssistant client:only="react" />
     </ThemeProvider>
   </body>
 </html>

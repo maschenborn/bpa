@@ -13,12 +13,23 @@ yarn-error.log*
 pnpm-debug.log*
 
 
-# environment variables
+# environment variables and secrets
 .env
 .env.production
+.env.local
+.mcp.json
+
+# personal/medical data - DO NOT COMMIT
+src/content/doctors/
+src/content/appointments/
+src/content/medications/
+src/content/status/
+src/content/documents/
+public/documents/
 
 # macOS-specific files
 .DS_Store
 
-# jetbrains setting folder
+# IDE settings
 .idea/
+.vscode/

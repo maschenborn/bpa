@@ -302,6 +302,16 @@ function parseMarkdownStatus(content: string, filename: string): StatusWithConte
       if (value === '') {
         inArray = true;
         arrayValues = [];
+      } else if (value === '[]') {
+        // Handle empty inline array
+        data[currentKey] = [];
+      } else if (value.startsWith('[') && value.endsWith(']')) {
+        // Handle inline array like ["a", "b", "c"]
+        try {
+          data[currentKey] = JSON.parse(value);
+        } catch {
+          data[currentKey] = value.replace(/"/g, '');
+        }
       } else {
         data[currentKey] = value.replace(/"/g, '');
       }

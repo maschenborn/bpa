@@ -32,8 +32,9 @@ export const GET: APIRoute = async ({ url }) => {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch timeline' }), {
+  } catch (error: any) {
+    console.error('Timeline API Error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to fetch timeline', details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
