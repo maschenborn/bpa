@@ -12,7 +12,15 @@ import DescriptionIcon from '@mui/icons-material/Description';
 <BaseLayout title="Dashboard">
   <Container sx={{ width: '100%', py: 4 }}>
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h1" component="h1" gutterBottom>
+      <Typography
+        variant="h1"
+        component="h1"
+        gutterBottom
+        sx={{
+          fontSize: { xs: '2rem', sm: '3rem', md: '3.75rem' },
+          wordBreak: 'break-word'
+        }}
+      >
         BPA - Bines Patientenakte
       </Typography>
       <Typography variant="body1" color="text.secondary">
