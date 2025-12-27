@@ -21,6 +21,8 @@ const appointmentTypes = [
   { value: 'emergency', label: 'Notfall' },
   { value: 'surgery', label: 'Operation' },
   { value: 'imaging', label: 'Bildgebung' },
+  { value: 'phone', label: 'Telefon-Kontakt' },
+  { value: 'email', label: 'E-Mail-Kontakt' },
 ];
 
 export default function AppointmentForm({ appointment, doctors, onSuccess, onCancel }: AppointmentFormProps) {
@@ -40,7 +42,11 @@ export default function AppointmentForm({ appointment, doctors, onSuccess, onCan
     date: getInitialDate(),
     time: appointment?.time || '',
     doctorId: appointment?.doctorId || '',
-    type: appointment?.type || 'consultation',
+    type: (() => {
+      const t = appointment?.type?.toLowerCase();
+      if (t && appointmentTypes.some(opt => opt.value === t)) return t;
+      return 'consultation';
+    })(),
     reason: appointment?.reason || '',
     findings: appointment?.findings || '',
     diagnosis: appointment?.diagnosis || '',
@@ -135,6 +141,13 @@ export default function AppointmentForm({ appointment, doctors, onSuccess, onCan
             onChange={handleChange('doctorId')}
             fullWidth
             required
+            slotProps={{
+              select: {
+                MenuProps: {
+                  sx: { zIndex: (theme) => theme.zIndex.modal + 12 }
+                }
+              }
+            }}
           >
             {doctors.map((doctor) => (
               <MenuItem key={doctor.id} value={doctor.id}>
@@ -151,6 +164,13 @@ export default function AppointmentForm({ appointment, doctors, onSuccess, onCan
             onChange={handleChange('type')}
             fullWidth
             required
+            slotProps={{
+              select: {
+                MenuProps: {
+                  sx: { zIndex: (theme) => theme.zIndex.modal + 12 }
+                }
+              }
+            }}
           >
             {appointmentTypes.map((type) => (
               <MenuItem key={type.value} value={type.value}>

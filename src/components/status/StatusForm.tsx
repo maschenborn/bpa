@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
+import Autocomplete from '@mui/material/Autocomplete';
 import type { Status } from '../../content/config';
 
 interface StatusFormProps {
@@ -34,6 +35,7 @@ const commonSymptoms = [
   'Übelkeit',
   'Taubheitsgefühl',
   'Druckschmerz',
+  'Schütteln',
 ];
 
 export default function StatusForm({ status, onSuccess, onCancel }: StatusFormProps) {
@@ -41,9 +43,7 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
   const getInitialDate = () => {
     if (!status?.date) return new Date().toISOString().split('T')[0];
     try {
-      // Handle both Date objects and strings
       const d = new Date(status.date);
-      // Ensure we get a valid date string
       if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
       return d.toISOString().split('T')[0];
     } catch {
@@ -53,12 +53,24 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
 
   // Helper to format time for input (HH:mm)
   const getInitialTime = () => {
-    if (!status?.time) {
-      if (status) return ''; // Editing existing without time
-      // New entry - default to current time
-      return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    }
-    return status.time;
+    if (status?.time) return status.time;
+    // New entry -> current time
+    // Edit entry without time -> start empty to allow user to add it, OR default to now?
+    // User complaint: "Uhrzeit wurde nicht gespeichert" -> they want it!
+    // But if editing an old one, maybe keep it empty? 
+    // Logic: If status exists (editing) and no time, return empty.
+    // If status is null (creating), return current time.
+    if (status) return '';
+    return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Ensure mood is valid or valid fallback
+  const getInitialMood = () => {
+    const m = status?.mood?.toLowerCase();
+    if (m && moodOptions.some(opt => opt.value === m)) return m;
+    // If value exists but matches no option (e.g. "Gut"), return it? No, Select won't show it.
+    // We should probably map it if possible, or default to 'okay'
+    return 'okay';
   };
 
   const [formData, setFormData] = useState({
@@ -66,8 +78,7 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
     time: getInitialTime(),
     painLevel: status?.painLevel ?? 5,
     symptoms: status?.symptoms || [],
-    generalCondition: status?.generalCondition || '',
-    mood: status?.mood || 'okay',
+    mood: getInitialMood(),
     notes: status?.notes || '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +98,12 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
     }));
   };
 
-  const toggleSymptom = (symptom: string) => {
-    setFormData((prev) => {
-      const symptoms = prev.symptoms.includes(symptom)
-        ? prev.symptoms.filter((s) => s !== symptom)
-        : [...prev.symptoms, symptom];
-      return { ...prev, symptoms };
-    });
+  const handleSymptomsChange = (_: any, newValue: (string | unknown)[]) => {
+    // Autocomplete freeSolo can return strings or objects if we had them. Here just strings.
+    setFormData((prev) => ({
+      ...prev,
+      symptoms: newValue as string[],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,10 +121,23 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
       const url = status ? `/api/status/${status.id}` : '/api/status';
       const method = status ? 'PUT' : 'POST';
 
+      const payload = {
+        date: formData.date,
+        time: formData.time,
+        painLevel: formData.painLevel,
+        symptoms: formData.symptoms,
+        mood: formData.mood,
+        notes: formData.notes,
+        // Preserve other fields if passed in status but not edited here
+        affectedAreas: status?.affectedAreas || [],
+        medicationsTaken: status?.medicationsTaken || [],
+        documentIds: status?.documentIds || [],
+      };
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -167,6 +190,13 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
             onChange={handleChange('mood')}
             fullWidth
             required
+            slotProps={{
+              select: {
+                MenuProps: {
+                  sx: { zIndex: (theme) => theme.zIndex.modal + 12 }
+                }
+              }
+            }}
           >
             {moodOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
@@ -193,30 +223,28 @@ export default function StatusForm({ status, onSuccess, onCancel }: StatusFormPr
           />
         </Grid>
         <Grid size={{ xs: 12 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Symptome (klicken zum Auswählen):
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {commonSymptoms.map((symptom) => (
-              <Chip
-                key={symptom}
-                label={symptom}
-                onClick={() => toggleSymptom(symptom)}
-                color={formData.symptoms.includes(symptom) ? 'primary' : 'default'}
-                variant={formData.symptoms.includes(symptom) ? 'filled' : 'outlined'}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={commonSymptoms}
+            value={formData.symptoms}
+            onChange={handleSymptomsChange}
+            renderTags={(value: readonly string[], getTagProps) =>
+              value.map((option: string, index: number) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} key={index} />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Symptome"
+                placeholder="Symptom hinzufügen (Tippen + Enter)"
+                helperText="Wählen Sie aus der Liste oder tippen Sie eigene Symptome ein"
               />
-            ))}
-          </Box>
-        </Grid>
-        <Grid size={{ xs: 12 }}>
-          <TextField
-            label="Allgemeinzustand"
-            value={formData.generalCondition}
-            onChange={handleChange('generalCondition')}
-            fullWidth
-            placeholder="z.B. Erschöpft aber stabil"
+            )}
           />
         </Grid>
+
         <Grid size={{ xs: 12 }}>
           <TextField
             label="Notizen"
