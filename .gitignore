@@ -18,6 +18,7 @@ pnpm-debug.log*
 .env.production
 .env.local
 .mcp.json
+service-account.json
 
 # personal/medical data - DO NOT COMMIT
 src/content/doctors/
@@ -33,3 +34,4 @@ public/documents/
 # IDE settings
 .idea/
 .vscode/
+53d6a772-1ffa-4580-b651-54c4d25cbdc3
