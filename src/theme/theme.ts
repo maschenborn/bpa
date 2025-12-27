@@ -1,16 +1,16 @@
 import { createTheme } from '@mui/material/styles';
 
-// team:orange brand color
-const brandOrange = '#fa5f46';
-const brandOrangeLight = '#ff8a75';
-const brandOrangeDark = '#c44a35';
+// MUI default blue
+const primaryBlue = '#1976d2';
+const primaryBlueLight = '#42a5f5';
+const primaryBlueDark = '#1565c0';
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: brandOrange,
-      light: brandOrangeLight,
-      dark: brandOrangeDark,
+      main: primaryBlue,
+      light: primaryBlueLight,
+      dark: primaryBlueDark,
       contrastText: '#ffffff',
     },
     secondary: {

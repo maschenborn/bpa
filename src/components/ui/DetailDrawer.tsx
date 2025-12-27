@@ -156,7 +156,7 @@ function AppointmentDetail({ data, doctors, onNavigate }: { data: Appointment; d
       {/* Hero Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #fa5f46 0%, #ff8a75 100%)',
+          background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
           borderRadius: 3,
           p: 2.5,
           mb: 3,
