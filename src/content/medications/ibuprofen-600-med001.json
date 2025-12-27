@@ -1,0 +1,19 @@
+{
+  "id": "med00001-0000-4000-a000-000000000001",
+  "name": "Ibuprofen 600",
+  "genericName": "Ibuprofen",
+  "dosage": "600mg",
+  "frequency": "3x täglich bei Bedarf",
+  "route": "oral",
+  "prescribingDoctorId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "appointmentId": "apt00001-0000-4000-a000-000000000001",
+  "startDate": "2025-10-10",
+  "endDate": "2025-10-18",
+  "isActive": false,
+  "purpose": "Schmerzlinderung nach Wurzelbehandlung",
+  "effects": "Mäßige Wirkung, Schmerzen nur teilweise kontrolliert",
+  "sideEffects": ["Magenbeschwerden"],
+  "notes": "Musste wegen unzureichender Wirkung auf stärkeres Mittel umgestellt werden.",
+  "createdAt": "2025-10-10T12:00:00Z",
+  "updatedAt": "2025-10-18T09:00:00Z"
+}

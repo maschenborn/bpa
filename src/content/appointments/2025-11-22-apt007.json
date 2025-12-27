@@ -1,0 +1,17 @@
+{
+  "id": "apt00007-0000-4000-a000-000000000007",
+  "date": "2025-11-22",
+  "time": "07:30",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "type": "treatment",
+  "reason": "Operative Revision und Zahnextraktion 36",
+  "findings": "Zahn 36 extrahiert. Wurzelreste und nekrotisches Gewebe entfernt. Kieferknochen angefrischt.",
+  "diagnosis": "Z.n. Extraktion 36, Sequestrektomie",
+  "recommendations": ["Stationär 2 Tage", "IV-Antibiotika", "Flüssige Kost für 1 Woche"],
+  "prescriptions": [],
+  "documentIds": [],
+  "notes": "OP verlief komplikationslos. 2 Tage stationärer Aufenthalt.",
+  "followUpDate": "2025-11-29",
+  "createdAt": "2025-11-22T12:00:00Z",
+  "updatedAt": "2025-11-24T14:00:00Z"
+}

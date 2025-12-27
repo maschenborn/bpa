@@ -1,0 +1,15 @@
+{
+  "id": "doc00003-0000-4000-a000-000000000003",
+  "type": "report",
+  "title": "OP-Bericht Extraktion und Sequestrektomie",
+  "description": "Operationsbericht: Extraktion Zahn 36, Entfernung Sequester und nekrotisches Gewebe",
+  "filePath": "documents/2025-11/op-bericht-2025-11-22.pdf",
+  "fileType": "pdf",
+  "fileSize": 850000,
+  "date": "2025-11-22",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "appointmentId": "apt00007-0000-4000-a000-000000000007",
+  "tags": ["op-bericht", "extraktion", "sequestrektomie"],
+  "createdAt": "2025-11-22T16:00:00Z",
+  "updatedAt": "2025-11-22T16:00:00Z"
+}

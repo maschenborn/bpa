@@ -1,0 +1,17 @@
+{
+  "id": "apt00009-0000-4000-a000-000000000009",
+  "date": "2025-12-20",
+  "time": "11:00",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "type": "follow-up",
+  "reason": "Kontrolle - Sensibilitätsstörung Unterlippe",
+  "findings": "Sensibilität leicht gebessert. Wunde vollständig verheilt. Knochenregeneration im Röntgen erkennbar.",
+  "diagnosis": "Z.n. Extraktion 36 - Nervläsion rückläufig",
+  "recommendations": ["Vitamin B fortsetzen", "Kontrolle in 4 Wochen", "Bei Verschlechterung sofort melden"],
+  "prescriptions": [],
+  "documentIds": [],
+  "notes": "Gute Nachrichten - Taubheit geht zurück. Weiterer Verlauf abwarten.",
+  "followUpDate": "2026-01-17",
+  "createdAt": "2025-12-20T11:30:00Z",
+  "updatedAt": "2025-12-20T11:30:00Z"
+}

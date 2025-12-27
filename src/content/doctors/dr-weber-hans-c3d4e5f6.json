@@ -1,0 +1,18 @@
+{
+  "id": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+  "name": "Dr. Hans Weber",
+  "specialty": "HNO-Heilkunde",
+  "clinic": "HNO-Praxis am Alexanderplatz",
+  "address": {
+    "street": "Alexanderplatz 7",
+    "city": "Berlin",
+    "zip": "10178"
+  },
+  "phone": "+49 30 55667788",
+  "email": "info@hno-weber.de",
+  "notes": "Konsultiert wegen der Ausbreitung der Entzündung in Richtung Nasennebenhöhlen und Ohr.",
+  "firstVisit": "2025-11-05",
+  "isActive": true,
+  "createdAt": "2025-11-05T14:00:00Z",
+  "updatedAt": "2025-12-10T10:00:00Z"
+}

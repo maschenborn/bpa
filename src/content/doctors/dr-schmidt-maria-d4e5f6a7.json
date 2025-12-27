@@ -1,0 +1,18 @@
+{
+  "id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+  "name": "Dr. Maria Schmidt",
+  "specialty": "Allgemeinmedizin",
+  "clinic": "Hausarztpraxis Schmidt",
+  "address": {
+    "street": "Prenzlauer Allee 156",
+    "city": "Berlin",
+    "zip": "10409"
+  },
+  "phone": "+49 30 44556677",
+  "email": "praxis@dr-schmidt-berlin.de",
+  "notes": "Hausärztin. Koordiniert die Behandlung und stellt Überweisungen aus. Kennt Bine seit Jahren.",
+  "firstVisit": "2025-10-14",
+  "isActive": true,
+  "createdAt": "2025-10-14T08:30:00Z",
+  "updatedAt": "2025-12-23T09:00:00Z"
+}

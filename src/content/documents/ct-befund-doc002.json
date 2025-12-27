@@ -1,0 +1,15 @@
+{
+  "id": "doc00002-0000-4000-a000-000000000002",
+  "type": "report",
+  "title": "CT-Befund Unterkiefer 15.11.2025",
+  "description": "DVT zeigt chronische Osteomyelitis mit Sequesterbildung, Wurzelreste apikal",
+  "filePath": "documents/2025-11/ct-befund-2025-11-15.pdf",
+  "fileType": "pdf",
+  "fileSize": 4200000,
+  "date": "2025-11-15",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "appointmentId": "apt00006-0000-4000-a000-000000000006",
+  "tags": ["ct", "dvt", "osteomyelitis", "diagnose"],
+  "createdAt": "2025-11-15T11:00:00Z",
+  "updatedAt": "2025-11-15T11:00:00Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "apt00004-0000-4000-a000-000000000004",
+  "date": "2025-10-25",
+  "time": "10:00",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "type": "follow-up",
+  "reason": "Kontrolle nach Abszessdrainage",
+  "findings": "Wundheilung verläuft langsam. Noch leichte Schwellung. Drainagestelle muss weiter gespült werden.",
+  "diagnosis": "Zustand nach Abszessdrainage - verzögerte Heilung",
+  "recommendations": ["Tägliche Wundspülung", "Antibiotika fortsetzen", "Weiche Kost"],
+  "prescriptions": [],
+  "documentIds": [],
+  "notes": "Heilung nicht optimal. Weitere Kontrolle nötig.",
+  "followUpDate": "2025-11-01",
+  "createdAt": "2025-10-25T10:30:00Z",
+  "updatedAt": "2025-10-25T10:30:00Z"
+}

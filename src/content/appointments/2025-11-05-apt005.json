@@ -1,0 +1,16 @@
+{
+  "id": "apt00005-0000-4000-a000-000000000005",
+  "date": "2025-11-05",
+  "time": "14:30",
+  "doctorId": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+  "type": "consultation",
+  "reason": "Ohrenschmerzen und Druckgefühl, möglicherweise von Zahnentzündung ausstrahlend",
+  "findings": "Trommelfell intakt. Jedoch Schwellung im Bereich des Kiefergelenks. Schmerzen strahlen ins Ohr aus.",
+  "diagnosis": "Referred Pain von Kieferbereich",
+  "recommendations": ["Weiterbehandlung durch MKG", "Wärmeanwendung", "Physiotherapie Kiefergelenk"],
+  "prescriptions": [],
+  "documentIds": [],
+  "notes": "Kein primäres HNO-Problem. Schmerzen vom Kiefer ausstrahlend.",
+  "createdAt": "2025-11-05T15:00:00Z",
+  "updatedAt": "2025-11-05T15:00:00Z"
+}

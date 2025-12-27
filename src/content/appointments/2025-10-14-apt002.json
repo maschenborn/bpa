@@ -1,0 +1,17 @@
+{
+  "id": "apt00002-0000-4000-a000-000000000002",
+  "date": "2025-10-14",
+  "time": "09:00",
+  "doctorId": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
+  "type": "consultation",
+  "reason": "Starke Schmerzen und Schwellung nach Zahnbehandlung",
+  "findings": "Massive Schwellung linke Gesichtshälfte. Temperatur 38.2°C. Lymphknoten geschwollen.",
+  "diagnosis": "V.a. Abszess nach Wurzelbehandlung",
+  "recommendations": ["Sofortige Überweisung zur Kieferchirurgie", "Antibiotika", "Krankschreibung"],
+  "prescriptions": [],
+  "documentIds": [],
+  "notes": "Überweisung zur MKG ausgestellt. Verdacht auf iatrogene Komplikation.",
+  "followUpDate": "2025-10-21",
+  "createdAt": "2025-10-14T09:30:00Z",
+  "updatedAt": "2025-10-14T09:30:00Z"
+}

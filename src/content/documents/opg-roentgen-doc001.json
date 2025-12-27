@@ -1,0 +1,15 @@
+{
+  "id": "doc00001-0000-4000-a000-000000000001",
+  "type": "xray",
+  "title": "OPG Röntgenaufnahme 18.10.2025",
+  "description": "Panoramaröntgen zeigt überfüllten Wurzelkanal Zahn 36 mit periapikaler Aufhellung",
+  "filePath": "documents/2025-10/opg-2025-10-18.pdf",
+  "fileType": "pdf",
+  "fileSize": 2500000,
+  "date": "2025-10-18",
+  "doctorId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+  "appointmentId": "apt00003-0000-4000-a000-000000000003",
+  "tags": ["röntgen", "opg", "zahn 36", "diagnose"],
+  "createdAt": "2025-10-18T09:30:00Z",
+  "updatedAt": "2025-10-18T09:30:00Z"
+}
